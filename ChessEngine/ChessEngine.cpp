@@ -2,6 +2,34 @@
 #include <iostream>
 using namespace std;
 using namespace sf;
+
+enum Piece
+{
+    EMPTY = 0,
+    WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
+    BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
+};
+
+//default board
+int board[8][8] =
+{
+    {8,9,10,11,12,10,9,8},
+    {7,7,7,7,7,7,7,7},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1},
+    {2,3,4,5,6,4,3,2}
+};
+bool generatedMoves[8][8];
+Vector2i enPassantSquare = { -1,-1 };
+
+
+bool IsLegal(Vector2i startPos, Vector2i endPos);
+void GenerateMoves(Vector2i pos);
+int WhichPiece(Vector2i pos);
+
 int main()
 {
     unsigned int windowWidth = 650;
@@ -18,25 +46,7 @@ int main()
     selectedPiece.x = -1;
     selectedPiece.y = -1;
 
-    enum Piece
-    {
-        EMPTY = 0,
-        WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
-        BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
-    };
-
-    //default board
-    int board[8][8] =
-    {
-        {8,9,10,11,12,10,9,8},
-        {7,7,7,7,7,7,7,7},
-        {0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0},
-        {1,1,1,1,1,1,1,1},
-        {2,3,4,5,6,4,3,2}
-    };
+   
     Texture piecesTexture[13];
 
     RenderWindow window(sf::VideoMode({ windowWidth, windowHeight}),"Chess");
@@ -102,10 +112,37 @@ int main()
 
                         if ((y != selectedPiece.y || x != selectedPiece.x) && (board[y][x] == EMPTY || ((whiteTurn && board[y][x] > 6) || (!whiteTurn && board[y][x] <= 6))))
                         {
-                            board[y][x] = board[selectedPiece.y][selectedPiece.x];
-                            board[selectedPiece.y][selectedPiece.x] = EMPTY;
+                            GenerateMoves({ selectedPiece.x,selectedPiece.y });
+                            if (generatedMoves[y][x])
+                            {
+                                if (WhichPiece(selectedPiece) == 1 && x == enPassantSquare.x && y == enPassantSquare.y)
+                                {
+                                    board[y][x] = board[selectedPiece.y][selectedPiece.x];
+                                    board[selectedPiece.y][selectedPiece.x] = EMPTY;
+                                    if(whiteTurn)
+                                        board[y + 1][x] = EMPTY;
+                                    else
+                                        board[y - 1][x] = EMPTY;
+                                }
+                                else if (WhichPiece(selectedPiece) == 1 && (y == 0 || y == 7)) // promotion to queen only, replace with selection later
+                                {
+                                    board[y][x] = whiteTurn ? WQ : BQ;
+                                    board[selectedPiece.y][selectedPiece.x] = EMPTY;
+                                }
+                                else
+                                {
+                                    board[y][x] = board[selectedPiece.y][selectedPiece.x];
+                                    board[selectedPiece.y][selectedPiece.x] = EMPTY;
+                                }
+                                
 
-                            whiteTurn = whiteTurn ? false : true;
+                                if (WhichPiece({x,y}) == 1 && (selectedPiece.y - y == 2 || selectedPiece.y - y == -2))
+                                    enPassantSquare = { x,whiteTurn ? y + 1 : y - 1 };
+                                else
+                                    enPassantSquare = { -1,-1 };
+
+                                whiteTurn = !whiteTurn;
+                            }
                         }
                         selectedPiece.x = -1;
                         for (int i = 0; i < 8 * 8;i++)
@@ -169,4 +206,131 @@ int main()
         }
         window.display();
     }
+}
+bool IsWhite(Vector2i pos)
+{
+    if (board[pos.y][pos.x] >= 6)
+    {
+        return false;
+    }
+    return true;
+}
+int WhichPiece(Vector2i pos) // 0-empty 1-pawn 2-knight 3-bishop 4-rook 5-queen 6-king
+{
+    if (board[pos.y][pos.x] == EMPTY)
+        return 0;
+    else if (board[pos.y][pos.x] == 1 || board[pos.y][pos.x] == 7)
+        return 1;
+    else if (board[pos.y][pos.x] == 3 || board[pos.y][pos.x] == 9)
+        return 2;
+    else if (board[pos.y][pos.x] == 4 || board[pos.y][pos.x] == 10)
+        return 3;
+    else if (board[pos.y][pos.x] == 2 || board[pos.y][pos.x] == 8)
+        return 4;
+    else if (board[pos.y][pos.x] == 5 || board[pos.y][pos.x] == 11)
+        return 5;
+    else if (board[pos.y][pos.x] == 6 || board[pos.y][pos.x] == 12)
+        return 6;
+}
+
+void GenerateMoves(Vector2i pos)
+{
+    for (int i = 0; i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            generatedMoves[i][j] = false;
+        }
+    }
+    int pieceType = WhichPiece(pos);
+    switch (pieceType)
+    {
+    case 1: //pawn
+        if (IsWhite(pos))
+        {
+            //movement
+            if (board[pos.y - 1][pos.x] == EMPTY)
+                generatedMoves[pos.y - 1][pos.x] = true;
+            if (board[pos.y - 2][pos.x] == EMPTY && board[pos.y - 1][pos.x] == EMPTY && pos.y == 6)
+                generatedMoves[pos.y - 2][pos.x] = true;
+
+            //diagonal capture
+            if(enPassantSquare.x != -1)
+                generatedMoves[enPassantSquare.y][enPassantSquare.x] = true;
+            if (board[pos.y - 1][pos.x + 1] != EMPTY)
+                generatedMoves[pos.y - 1][pos.x + 1] = true;
+            if (board[pos.y - 1][pos.x - 1] != EMPTY)
+                generatedMoves[pos.y - 1][pos.x - 1] = true;
+        }
+        else
+        {
+            //movement
+            if (board[pos.y + 1][pos.x] == EMPTY)
+                generatedMoves[pos.y + 1][pos.x] = true;
+            if (board[pos.y + 2][pos.x] == EMPTY && board[pos.y + 1][pos.x] == EMPTY && pos.y == 1)
+                generatedMoves[pos.y + 2][pos.x] = true;
+
+            //diagonal capture
+            if (enPassantSquare.x != -1)
+                generatedMoves[enPassantSquare.y][enPassantSquare.x] = true;
+            if (board[pos.y + 1][pos.x + 1] != EMPTY)
+                generatedMoves[pos.y + 1][pos.x + 1] = true;
+            if (board[pos.y + 1][pos.x - 1] != EMPTY)
+                generatedMoves[pos.y + 1][pos.x - 1] = true;
+        }
+        break;
+    case 2: //knight
+
+        break;
+    case 3: //Bishop
+
+        break;
+    case 4: //Rook
+
+        break;
+    case 5: //Queen
+
+        break;
+    case 6: //King
+
+        break;
+    default:
+        break;
+    }
+}
+
+bool IsLegal(Vector2i startPos, Vector2i endPos)
+{
+    int pieceType = WhichPiece(startPos);
+    switch (pieceType)
+    {
+    case 1: //pawn
+        if (IsWhite(startPos))
+        {
+            
+        }
+        else
+        {
+
+        }
+        break;
+    case 2: //knight
+
+        break;
+    case 3: //Bishop
+
+        break;
+    case 4: //Rook
+
+        break;
+    case 5: //Queen
+
+        break;
+    case 6: //King
+
+        break;
+    default:
+        break;
+    }
+    return false;
 }
