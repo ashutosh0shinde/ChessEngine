@@ -11,6 +11,8 @@ int main()
     bool selectedSquares[8][8];
 
     bool isPressed = false;
+    
+    bool whiteTurn = true;
 
     Vector2i selectedPiece;
     selectedPiece.x = -1;
@@ -79,14 +81,17 @@ int main()
 
                 if (board[y][x] != EMPTY && selectedPiece.x == -1)
                 {
-                    selectedPiece.x = x;
-                    selectedPiece.y = y;
-
-                    for (int i = 0; i < 8 * 8;i++)
+                    if ((whiteTurn && board[y][x] <= 6) || (!whiteTurn && board[y][x] > 6))
                     {
-                        *(*selectedSquares + i) = false;
-                    }
-                    selectedSquares[y][x] = true;
+                        selectedPiece.x = x;
+                        selectedPiece.y = y;
+
+                        for (int i = 0; i < 8 * 8;i++)
+                        {
+                            *(*selectedSquares + i) = false;
+                        }
+                        selectedSquares[y][x] = true;
+                    }  
                 }
                 else
                 {
@@ -94,10 +99,13 @@ int main()
                     {
                         int x = pos.x / sqSize;
                         int y = pos.y / sqSize;
-                        if (y != selectedPiece.y || x != selectedPiece.x)
+
+                        if ((y != selectedPiece.y || x != selectedPiece.x) && (board[y][x] == EMPTY || ((whiteTurn && board[y][x] > 6) || (!whiteTurn && board[y][x] <= 6))))
                         {
                             board[y][x] = board[selectedPiece.y][selectedPiece.x];
                             board[selectedPiece.y][selectedPiece.x] = EMPTY;
+
+                            whiteTurn = whiteTurn ? false : true;
                         }
                         selectedPiece.x = -1;
                         for (int i = 0; i < 8 * 8;i++)
