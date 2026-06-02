@@ -12,6 +12,10 @@ int main()
 
     bool isPressed = false;
 
+    Vector2i selectedPiece;
+    selectedPiece.x = -1;
+    selectedPiece.y = -1;
+
     enum Piece
     {
         EMPTY = 0,
@@ -69,7 +73,40 @@ int main()
         {
             if (!isPressed)
             {
-                //cout << "Pressed, " << pos.x << " " << pos.y << endl;
+                //select piece
+                int x = pos.x / sqSize;
+                int y = pos.y / sqSize;
+
+                if (board[y][x] != EMPTY && selectedPiece.x == -1)
+                {
+                    selectedPiece.x = x;
+                    selectedPiece.y = y;
+
+                    for (int i = 0; i < 8 * 8;i++)
+                    {
+                        *(*selectedSquares + i) = false;
+                    }
+                    selectedSquares[y][x] = true;
+                }
+                else
+                {
+                    if (selectedPiece.x != -1)
+                    {
+                        int x = pos.x / sqSize;
+                        int y = pos.y / sqSize;
+                        if (y != selectedPiece.y || x != selectedPiece.x)
+                        {
+                            board[y][x] = board[selectedPiece.y][selectedPiece.x];
+                            board[selectedPiece.y][selectedPiece.x] = EMPTY;
+                        }
+                        selectedPiece.x = -1;
+                        for (int i = 0; i < 8 * 8;i++)
+                        {
+                            *(*selectedSquares + i) = false;
+                        }
+                    }
+                }
+
             }
             isPressed = true;
         }
