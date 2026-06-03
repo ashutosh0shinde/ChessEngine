@@ -29,6 +29,18 @@ Vector2i knightCoords[8] =
     {1,2},   {-1,2},
     {-2,1},  {-2,-1}
 };
+Vector2i directions[8] =
+{
+    {0,-1}, //up
+    {1,0},  //right
+    {0,1},  //down
+    {-1,0},  //left
+
+    {-1,-1}, //up left
+    {1,-1},  //up right
+    {1,1},   //down right
+    {-1,1},  //down left
+};
 bool generatedMoves[8][8];
 Vector2i enPassantSquare = { -1,-1 };
 bool whiteTurn = true;
@@ -213,6 +225,18 @@ int main()
         window.display();
     }
 }
+void PrintGeneratedMoves()
+{
+    cout << endl;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0; j < 8;j++)
+        {
+            cout << generatedMoves[i][j] << " ";
+        }
+        cout << endl;
+    }
+}
 bool IsWhite(Vector2i pos)
 {
     if (board[pos.y][pos.x] >= 6)
@@ -238,9 +262,50 @@ int WhichPiece(Vector2i pos) // 0-empty 1-pawn 2-knight 3-bishop 4-rook 5-queen 
     else if (board[pos.y][pos.x] == 6 || board[pos.y][pos.x] == 12)
         return 6;
 }
+bool IsEnemy(Vector2i pos)
+{
+    if (board[pos.y][pos.x] == EMPTY)
+        return false;
+    if (whiteTurn && !IsWhite(pos))
+        return true;
+    else if (!whiteTurn && IsWhite(pos))
+        return true;
+    else
+        return false;
+}
+bool IsFriendly(Vector2i pos)
+{
+    if (board[pos.y][pos.x] == EMPTY)
+        return false;
+    if((whiteTurn && IsWhite(pos)) || (!whiteTurn && !IsWhite(pos)))
+        return true;
+    else
+        return false;
+}
+void GenerateStraightSides(Vector2i pos, int st, int end, int steps = 8)
+{
+    Vector2i newPos;
+    for (int i = st; i < end;i++)
+    {
+        newPos = pos;
+        for (int j = 0; j < steps;j++)
+        {
+            newPos.x += directions[i].x;
+            newPos.y += directions[i].y;
 
+            if (newPos.x < 0 || newPos.x > 7 || newPos.y < 0 || newPos.y > 7 || IsFriendly(newPos))
+                break;
+
+            generatedMoves[newPos.y][newPos.x] = true;
+
+            if (IsEnemy(newPos))
+                break;
+        }
+    }
+}
 void GenerateMoves(Vector2i pos)
 {
+
     for (int i = 0; i < 8;i++)
     {
         for (int j = 0;j < 8;j++)
@@ -299,16 +364,16 @@ void GenerateMoves(Vector2i pos)
 
         break;
     case 3: //Bishop
-
+        GenerateStraightSides(pos, 4, 8);
         break;
     case 4: //Rook
-
+        GenerateStraightSides(pos, 0, 4);
         break;
     case 5: //Queen
-
+        GenerateStraightSides(pos, 0, 8);
         break;
     case 6: //King
-
+        GenerateStraightSides(pos, 0, 8,1);
         break;
     default:
         break;
