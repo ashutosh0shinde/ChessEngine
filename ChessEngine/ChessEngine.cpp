@@ -22,10 +22,18 @@ int board[8][8] =
     {1,1,1,1,1,1,1,1},
     {2,3,4,5,6,4,3,2}
 };
+Vector2i knightCoords[8] =
+{
+    {-1,-2}, {1,-2},
+    {2,-1},  {2,1},
+    {1,2},   {-1,2},
+    {-2,1},  {-2,-1}
+};
 bool generatedMoves[8][8];
 Vector2i enPassantSquare = { -1,-1 };
+bool whiteTurn = true;
 
-
+bool IsWhite(Vector2i pos);
 bool IsLegal(Vector2i startPos, Vector2i endPos);
 void GenerateMoves(Vector2i pos);
 int WhichPiece(Vector2i pos);
@@ -40,7 +48,6 @@ int main()
 
     bool isPressed = false;
     
-    bool whiteTurn = true;
 
     Vector2i selectedPiece;
     selectedPiece.x = -1;
@@ -112,8 +119,7 @@ int main()
 
                         if ((y != selectedPiece.y || x != selectedPiece.x) && (board[y][x] == EMPTY || ((whiteTurn && board[y][x] > 6) || (!whiteTurn && board[y][x] <= 6))))
                         {
-                            GenerateMoves({ selectedPiece.x,selectedPiece.y });
-                            if (generatedMoves[y][x])
+                            if (IsLegal(selectedPiece, {x,y}))
                             {
                                 if (WhichPiece(selectedPiece) == 1 && x == enPassantSquare.x && y == enPassantSquare.y)
                                 {
@@ -197,7 +203,7 @@ int main()
                 }
                 else
                 {
-                    rect.setFillColor(Color(141, 96, 37));
+                    rect.setFillColor(Color(176, 139, 107));
                 }
 
                 window.draw(rect);
@@ -281,6 +287,16 @@ void GenerateMoves(Vector2i pos)
         break;
     case 2: //knight
 
+        for (int i = 0;i < 8;i++)
+        {
+            int x = pos.x + knightCoords[i].x;
+            int y = pos.y + knightCoords[i].y;
+            if (x < 0 || y < 0 || x > 7 || y > 7)
+                continue;
+            if (board[y][x] == EMPTY || ((!whiteTurn && IsWhite({ x,y })) || (whiteTurn && !IsWhite({ x,y }))))
+                generatedMoves[y][x] = true;
+        }
+
         break;
     case 3: //Bishop
 
@@ -301,36 +317,10 @@ void GenerateMoves(Vector2i pos)
 
 bool IsLegal(Vector2i startPos, Vector2i endPos)
 {
-    int pieceType = WhichPiece(startPos);
-    switch (pieceType)
+    GenerateMoves(startPos);
+    if (generatedMoves[endPos.y][endPos.x] == true)
     {
-    case 1: //pawn
-        if (IsWhite(startPos))
-        {
-            
-        }
-        else
-        {
-
-        }
-        break;
-    case 2: //knight
-
-        break;
-    case 3: //Bishop
-
-        break;
-    case 4: //Rook
-
-        break;
-    case 5: //Queen
-
-        break;
-    case 6: //King
-
-        break;
-    default:
-        break;
+        return true;
     }
     return false;
 }
