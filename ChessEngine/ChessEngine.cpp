@@ -9,6 +9,13 @@ enum Piece
     WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
     BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
 };
+unsigned int windowWidth = 650;
+unsigned int windowHeight = 650;
+float sqSize = windowHeight / 8.f;
+    
+bool selectedSquares[8][8];
+Vector2i checkSquare = { -1,-1 };
+Vector2i selectedPiece;
 
 //default board
 int board[8][8] =
@@ -47,21 +54,17 @@ bool whiteTurn = true;
 
 bool IsWhite(Vector2i pos);
 bool IsLegal(Vector2i startPos, Vector2i endPos);
-void GenerateMoves(Vector2i pos);
+bool GenerateMoves(Vector2i pos, int king);
 int WhichPiece(Vector2i pos);
+bool MakeMove(Vector2i selectedPiece, Vector2i pos);
+bool IsInCheck(bool isWhiteToPlay);
+void PrintGeneratedMoves();
+Vector2i FindKing(bool findWhite);
 
 int main()
 {
-    unsigned int windowWidth = 650;
-    unsigned int windowHeight = 650;
-    float sqSize = windowHeight / 8.f;
+    bool isPressed = false;    
 
-    bool selectedSquares[8][8];
-
-    bool isPressed = false;
-    
-
-    Vector2i selectedPiece;
     selectedPiece.x = -1;
     selectedPiece.y = -1;
 
@@ -120,54 +123,24 @@ int main()
                             *(*selectedSquares + i) = false;
                         }
                         selectedSquares[y][x] = true;
+
+
+                        GenerateMoves({ x,y },-1);
+                        for (int i = 0;i < 8;i++)
+                        {
+                            for (int j = 0;j < 8;j++)
+                            {
+                                if (generatedMoves[i][j])
+                                {
+                                    selectedSquares[i][j] = true;
+                                }
+                            }
+                        }
                     }  
                 }
                 else
                 {
-                    if (selectedPiece.x != -1)
-                    {
-                        int x = pos.x / sqSize;
-                        int y = pos.y / sqSize;
-
-                        if ((y != selectedPiece.y || x != selectedPiece.x) && (board[y][x] == EMPTY || ((whiteTurn && board[y][x] > 6) || (!whiteTurn && board[y][x] <= 6))))
-                        {
-                            if (IsLegal(selectedPiece, {x,y}))
-                            {
-                                if (WhichPiece(selectedPiece) == 1 && x == enPassantSquare.x && y == enPassantSquare.y)
-                                {
-                                    board[y][x] = board[selectedPiece.y][selectedPiece.x];
-                                    board[selectedPiece.y][selectedPiece.x] = EMPTY;
-                                    if(whiteTurn)
-                                        board[y + 1][x] = EMPTY;
-                                    else
-                                        board[y - 1][x] = EMPTY;
-                                }
-                                else if (WhichPiece(selectedPiece) == 1 && (y == 0 || y == 7)) // promotion to queen only, replace with selection later
-                                {
-                                    board[y][x] = whiteTurn ? WQ : BQ;
-                                    board[selectedPiece.y][selectedPiece.x] = EMPTY;
-                                }
-                                else
-                                {
-                                    board[y][x] = board[selectedPiece.y][selectedPiece.x];
-                                    board[selectedPiece.y][selectedPiece.x] = EMPTY;
-                                }
-                                
-
-                                if (WhichPiece({x,y}) == 1 && (selectedPiece.y - y == 2 || selectedPiece.y - y == -2))
-                                    enPassantSquare = { x,whiteTurn ? y + 1 : y - 1 };
-                                else
-                                    enPassantSquare = { -1,-1 };
-
-                                whiteTurn = !whiteTurn;
-                            }
-                        }
-                        selectedPiece.x = -1;
-                        for (int i = 0; i < 8 * 8;i++)
-                        {
-                            *(*selectedSquares + i) = false;
-                        }
-                    }
+                    MakeMove(selectedPiece, pos);
                 }
 
             }
@@ -204,12 +177,11 @@ int main()
                 rect.setOutlineThickness(1);
                 rect.setOutlineColor(Color(0, 0, 0));
 
-                if (selectedSquares[row][col] == true)
+                if (checkSquare.x == col && checkSquare.y == row)
                 {
-                    rect.setFillColor(Color(167, 240, 189));
+                    rect.setFillColor(Color(245, 132, 132));
                 }
-                else
-                if ((row+col) % 2 == 0)
+                else if ((row+col) % 2 == 0)
                 {
                     rect.setFillColor(Color(245, 231, 185));
                 }
@@ -218,11 +190,73 @@ int main()
                     rect.setFillColor(Color(176, 139, 107));
                 }
 
+                if (selectedSquares[row][col] == true)
+                {
+                    rect.setFillColor(Color(167, 240, 189));
+                }
+
                 window.draw(rect);
                 window.draw(piece);
             }
         }
         window.display();
+    }
+}
+bool MakeMove(Vector2i targetpiece, Vector2i pos)
+{
+    checkSquare = { -1,-1 };
+    if (targetpiece.x != -1)
+    {
+        int x = pos.x / sqSize;
+        int y = pos.y / sqSize;
+
+        if ((y != targetpiece.y || x != targetpiece.x) && (board[y][x] == EMPTY || ((whiteTurn && board[y][x] > 6) || (!whiteTurn && board[y][x] <= 6))))
+        {
+            int currentPiece = board[y][x];
+            if (IsLegal(targetpiece, { x,y }))
+            {
+                if (WhichPiece(targetpiece) == 1 && x == enPassantSquare.x && y == enPassantSquare.y)
+                {
+                    board[y][x] = board[targetpiece.y][targetpiece.x];
+                    board[targetpiece.y][targetpiece.x] = EMPTY;
+                    if (whiteTurn)
+                        board[y + 1][x] = EMPTY;
+                    else
+                        board[y - 1][x] = EMPTY;
+                }
+                else if (WhichPiece(targetpiece) == 1 && (y == 0 || y == 7)) // promotion to queen only, replace with selection later
+                {
+                    board[y][x] = whiteTurn ? WQ : BQ;
+                    board[targetpiece.y][targetpiece.x] = EMPTY;
+                }
+                else
+                {
+                    board[y][x] = board[targetpiece.y][targetpiece.x];
+                    board[targetpiece.y][targetpiece.x] = EMPTY;
+                }
+
+
+                if (WhichPiece({ x,y }) == 1 && (targetpiece.y - y == 2 || targetpiece.y - y == -2))
+                    enPassantSquare = { x,whiteTurn ? y + 1 : y - 1 };
+                else
+                    enPassantSquare = { -1,-1 };
+
+                whiteTurn = !whiteTurn;
+            }
+        }
+        selectedPiece.x = -1;
+        for (int i = 0; i < 8 * 8;i++)
+        {
+            *(*selectedSquares + i) = false;
+        }
+
+        
+        if (IsInCheck(whiteTurn))
+        {
+            checkSquare = FindKing(whiteTurn);
+            cout << "JGFHH";
+        }
+        return true;
     }
 }
 void PrintGeneratedMoves()
@@ -239,7 +273,7 @@ void PrintGeneratedMoves()
 }
 bool IsWhite(Vector2i pos)
 {
-    if (board[pos.y][pos.x] >= 6)
+    if (board[pos.y][pos.x] > 6)
     {
         return false;
     }
@@ -303,9 +337,9 @@ void GenerateStraightSides(Vector2i pos, int st, int end, int steps = 8)
         }
     }
 }
-void GenerateMoves(Vector2i pos)
+bool GenerateMoves(Vector2i pos, int king = -1)
 {
-
+    bool kingCheck = false;
     for (int i = 0; i < 8;i++)
     {
         for (int j = 0;j < 8;j++)
@@ -328,10 +362,19 @@ void GenerateMoves(Vector2i pos)
             //diagonal capture
             if(enPassantSquare.x != -1)
                 generatedMoves[enPassantSquare.y][enPassantSquare.x] = true;
-            if (board[pos.y - 1][pos.x + 1] != EMPTY)
+            if (board[pos.y - 1][pos.x + 1] != EMPTY && IsEnemy({ pos.x + 1 , pos.y - 1}))
+            {
                 generatedMoves[pos.y - 1][pos.x + 1] = true;
-            if (board[pos.y - 1][pos.x - 1] != EMPTY)
+                if (board[pos.y - 1][pos.x + 1] == king)
+                    kingCheck = true;
+            }
+            if (board[pos.y - 1][pos.x - 1] != EMPTY && IsEnemy({ pos.x - 1, pos.y - 1}))
+            {
                 generatedMoves[pos.y - 1][pos.x - 1] = true;
+                if (board[pos.y - 1][pos.x - 1] == king)
+                    kingCheck = true;
+            }
+
         }
         else
         {
@@ -344,10 +387,18 @@ void GenerateMoves(Vector2i pos)
             //diagonal capture
             if (enPassantSquare.x != -1)
                 generatedMoves[enPassantSquare.y][enPassantSquare.x] = true;
-            if (board[pos.y + 1][pos.x + 1] != EMPTY)
+            if (board[pos.y + 1][pos.x + 1] != EMPTY && IsEnemy({ pos.x + 1 , pos.y + 1 }))
+            {
                 generatedMoves[pos.y + 1][pos.x + 1] = true;
-            if (board[pos.y + 1][pos.x - 1] != EMPTY)
+                if (board[pos.y + 1][pos.x + 1] == king)
+                    kingCheck = true;
+            }
+            if (board[pos.y + 1][pos.x - 1] != EMPTY && IsEnemy({ pos.x - 1 , pos.y + 1 }))
+            {
                 generatedMoves[pos.y + 1][pos.x - 1] = true;
+                if (board[pos.y + 1][pos.x - 1] == king)
+                    kingCheck = true;
+            }
         }
         break;
     case 2: //knight
@@ -359,8 +410,16 @@ void GenerateMoves(Vector2i pos)
             if (x < 0 || y < 0 || x > 7 || y > 7)
                 continue;
             if (board[y][x] == EMPTY || ((!whiteTurn && IsWhite({ x,y })) || (whiteTurn && !IsWhite({ x,y }))))
+            {
                 generatedMoves[y][x] = true;
+                cout << y << " " << x << endl;
+                if (board[y][x] == king)
+                {
+                    kingCheck = true;
+                }
+            }
         }
+            cout << endl;
 
         break;
     case 3: //Bishop
@@ -378,14 +437,47 @@ void GenerateMoves(Vector2i pos)
     default:
         break;
     }
+    return kingCheck;
 }
-
+bool IsInCheck(bool checkWhite)
+{
+    int kingID = checkWhite ? WK : BK;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (board[i][j] != EMPTY && (checkWhite != IsWhite({ j,i })))
+            {
+                if (GenerateMoves({ j, i }, kingID))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 bool IsLegal(Vector2i startPos, Vector2i endPos)
 {
     GenerateMoves(startPos);
+    PrintGeneratedMoves();
     if (generatedMoves[endPos.y][endPos.x] == true)
     {
         return true;
     }
     return false;
+}
+Vector2i FindKing(bool findWhite)
+{
+    int kingID = findWhite ? 6 : 12;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (board[i][j] == kingID)
+            {
+                return { j,i };
+            }
+        }
+    }
 }
