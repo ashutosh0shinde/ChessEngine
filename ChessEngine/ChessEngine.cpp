@@ -2,11 +2,53 @@
 #include <iostream>
 using namespace std;
 using namespace sf;
+
+
+unsigned int windowWidth = 650;
+unsigned int windowHeight = 650;
+float sqSize = windowHeight / 8.f;
+
+enum Piece
+{
+    EMPTY = 0,
+    WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
+    BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
+};
+
+//default board
+int board[8][8] =
+{
+    {8,9,10,11,12,10,9,8},
+    {7,7,7,7,7,7,7,7},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1},
+    {2,3,4,5,6,4,3,2}
+};
+bool generatedMoves[8][8];
+
+Vector2i directions[8] =
+{
+    {0,-1}, //up
+    {1,0},  //right
+    {0,1},  //down
+    {-1,0},  //left
+
+    {-1,-1}, //up left
+    {1,-1},  //up right
+    {1,1},   //down right
+    {-1,1},  //down left
+};
+
+int PieceColor(Vector2i pos);
+void GenerateMoves(Vector2i pos);
+
+
 int main()
 {
-    unsigned int windowWidth = 650;
-    unsigned int windowHeight = 650;
-    float sqSize = windowHeight / 8.f;
+
 
     bool selectedSquares[8][8];
 
@@ -16,25 +58,7 @@ int main()
     selectedPiece.x = -1;
     selectedPiece.y = -1;
 
-    enum Piece
-    {
-        EMPTY = 0,
-        WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
-        BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
-    };
-
-    //default board
-    int board[8][8] =
-    {
-        {8,9,10,11,12,10,9,8},
-        {7,7,7,7,7,7,7,7},
-        {0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0},
-        {0,0,0,0,0,0,0,0},
-        {1,1,1,1,1,1,1,1},
-        {2,3,4,5,6,4,3,2}
-    };
+    
     Texture piecesTexture[13];
 
     RenderWindow window(sf::VideoMode({ windowWidth, windowHeight }), "Chess");
@@ -74,10 +98,10 @@ int main()
             if (!isPressed)
             {
                 //select piece
-                int x = pos.x / sqSize;
-                int y = pos.y / sqSize;
+                int x = pos.y / sqSize;
+                int y = pos.x / sqSize;
 
-                if (board[y][x] != EMPTY && selectedPiece.x == -1)
+                if (board[x][y] != EMPTY && selectedPiece.x == -1)
                 {
                     selectedPiece.x = x;
                     selectedPiece.y = y;
@@ -86,18 +110,28 @@ int main()
                     {
                         *(*selectedSquares + i) = false;
                     }
-                    selectedSquares[y][x] = true;
+                    selectedSquares[x][y] = true;
+
+                    GenerateMoves({ x,y });
+                    for (int i = 0; i < 8;i++)
+                    {
+                        for (int j = 0;j < 8;j++)
+                        {
+                            if (generatedMoves[i][j])
+                                selectedSquares[i][j] = true;
+                        }
+                    }
                 }
                 else
                 {
                     if (selectedPiece.x != -1)
                     {
-                        int x = pos.x / sqSize;
-                        int y = pos.y / sqSize;
+                        int x = pos.y / sqSize;
+                        int y = pos.x / sqSize;
                         if (y != selectedPiece.y || x != selectedPiece.x)
                         {
-                            board[y][x] = board[selectedPiece.y][selectedPiece.x];
-                            board[selectedPiece.y][selectedPiece.x] = EMPTY;
+                            board[x][y] = board[selectedPiece.x][selectedPiece.y];
+                            board[selectedPiece.x][selectedPiece.y] = EMPTY;
                         }
                         selectedPiece.x = -1;
                         for (int i = 0; i < 8 * 8;i++)
@@ -160,5 +194,117 @@ int main()
             }
         }
         window.display();
+    }
+}
+int PieceColor(Vector2i pos) //0-empty 1-white 2-black
+{
+    if (board[pos.x][pos.y] == EMPTY)
+        return 0;
+    else if (board[pos.x][pos.y] <= 6)
+        return 1;
+    else if (board[pos.x][pos.y] > 6)
+        return 2;
+}
+bool IsEnemy(Vector2i target, Vector2i enemyTo)
+{
+    if (PieceColor(target) != PieceColor(enemyTo))
+        return true;
+    return false;
+}
+int WhichPiece(Vector2i pos)
+{
+    if (board[pos.x][pos.y] == EMPTY)
+        return 0;
+    else if (board[pos.x][pos.y] == 1 || board[pos.x][pos.y] == 7)
+        return 1;
+    else if (board[pos.x][pos.y] == 3 || board[pos.x][pos.y] == 9)
+        return 2;
+    else if (board[pos.x][pos.y] == 4 || board[pos.x][pos.y] == 10)
+        return 3;
+    else if (board[pos.x][pos.y] == 2 || board[pos.x][pos.y] == 8)
+        return 4;
+    else if (board[pos.x][pos.y] == 5 || board[pos.x][pos.y] == 11)
+        return 5;
+    else if (board[pos.x][pos.y] == 6 || board[pos.x][pos.y] == 12)
+        return 6;
+}
+
+
+Vector2i knightCoords[8] =
+{
+    {-1,-2}, {1,-2},
+    {2,-1},  {2,1},
+    {1,2},   {-1,2},
+    {-2,1},  {-2,-1}
+};
+void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps = 8)
+{
+    Vector2i newPos;
+    for (int i = st; i < end;i++)
+    {
+        newPos = pos;
+        for (int j = 0; j < steps;j++)
+        {
+            newPos.x += directions[i].x;
+            newPos.y += directions[i].y;
+
+            if (newPos.x < 0 || newPos.x > 7 || newPos.y < 0 || newPos.y > 7 || !IsEnemy(newPos,pos))
+                break;
+
+            generatedMoves[newPos.x][newPos.y] = true;
+
+            if (IsEnemy(newPos, pos) && WhichPiece(newPos) != EMPTY)
+                break;
+        }
+    }
+}
+void GenerateMoves(Vector2i pos)
+{
+    for (int i = 0; i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            generatedMoves[i][j] = false;
+        }
+    }
+
+    if (PieceColor(pos) == EMPTY)
+        return;
+
+    bool isWhite = PieceColor(pos) == 1 ? true : false;
+    int pieceType = WhichPiece(pos);
+
+    switch (pieceType)
+    {
+    case 1: //pawn
+        
+        break;
+    case 2: //knight
+
+        for (int i = 0;i < 8;i++)
+        {
+            int x = pos.x + knightCoords[i].x;
+            int y = pos.y + knightCoords[i].y;
+            if (x < 0 || y < 0 || x > 7 || y > 7)
+                continue;
+            if (IsEnemy({x,y}, pos))
+                generatedMoves[x][y] = true;
+        }
+
+        break;
+    case 3: //Bishop
+        SlidingMovesGenerate(pos, isWhite, 4, 8);
+        break;
+    case 4: //Rook
+        SlidingMovesGenerate(pos, isWhite, 0, 4);
+        break;
+    case 5: //Queen
+        SlidingMovesGenerate(pos, isWhite, 0, 8);
+        break;
+    case 6: //King
+        SlidingMovesGenerate(pos, isWhite, 0, 8,1);
+        break;
+    default:
+        break;
     }
 }
