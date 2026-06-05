@@ -44,6 +44,7 @@ Vector2i directions[8] =
 
 bool selectedSquares[8][8];    
 Vector2i selectedPiece;
+Vector2i checkSquare = { -1,-1 };
 
 int PieceColor(Vector2i pos);
 void GenerateMoves(Vector2i pos);
@@ -52,6 +53,8 @@ int WhichPiece(Vector2i pos);
 void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps);
 bool MakeMove(Vector2i piecePos, Vector2i targetPos);
 void PrintGeneratedMoves();
+bool IsKingInCheck(bool isWhite);
+Vector2i FindKing(bool isWhite);
 
 int main()
 {
@@ -171,19 +174,24 @@ int main()
                 rect.setOutlineThickness(1);
                 rect.setOutlineColor(Color(0, 0, 0));
 
+                if ((row + col) % 2 == 0)
+                {
+                    rect.setFillColor(Color(245, 231, 185));
+                }
+                else
+                {
+                    rect.setFillColor(Color(141, 96, 37));
+                }
+
+                if (checkSquare.x == row && checkSquare.y == col)
+                {
+                    rect.setFillColor(Color(255, 154, 129));
+                }
+
                 if (selectedSquares[row][col] == true)
                 {
                     rect.setFillColor(Color(167, 240, 189));
                 }
-                else
-                    if ((row + col) % 2 == 0)
-                    {
-                        rect.setFillColor(Color(245, 231, 185));
-                    }
-                    else
-                    {
-                        rect.setFillColor(Color(141, 96, 37));
-                    }
 
                 window.draw(rect);
                 window.draw(piece);
@@ -209,6 +217,9 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos)
     {
         *(*selectedSquares + i) = false;
     }
+
+    bool isWhite = PieceColor(targetPos) == 1 ? false : true;
+    IsKingInCheck(isWhite);
     return true;
 }
 void PrintGeneratedMoves()
@@ -304,7 +315,41 @@ void GenerateMoves(Vector2i pos)
     switch (pieceType)
     {
     case 1: //pawn
-        
+        if (isWhite)
+        {
+            if (board[pos.x-1][pos.y] == EMPTY)
+            {
+                generatedMoves[pos.x-1][pos.y] = true;
+
+                if (pos.x == 6 && board[pos.x-2][pos.y] == EMPTY)
+                {
+                    generatedMoves[pos.x-2][pos.y] = true;
+                }
+            }
+            if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2)
+                generatedMoves[pos.x - 1][pos.y - 1] = true;
+
+            if (PieceColor({ pos.x - 1,pos.y + 1 }) == 2)
+                generatedMoves[pos.x - 1][pos.y + 1] = true;
+        }
+        else
+        {
+            if (board[pos.x + 1][pos.y] == EMPTY)
+            {
+                generatedMoves[pos.x + 1][pos.y] = true;
+
+                if (pos.x == 1 && board[pos.x + 2][pos.y] == EMPTY)
+                {
+                    generatedMoves[pos.x + 2][pos.y] = true;
+                }
+            }
+
+            if (PieceColor({ pos.x + 1,pos.y - 1 }) == 1)
+                generatedMoves[pos.x + 1][pos.y - 1] = true;
+
+            if (PieceColor({ pos.x + 1,pos.y + 1 }) == 1)
+                generatedMoves[pos.x + 1][pos.y + 1] = true;
+        }
         break;
     case 2: //knight
 
@@ -334,4 +379,42 @@ void GenerateMoves(Vector2i pos)
     default:
         break;
     }
+}
+Vector2i FindKing(bool isWhite)
+{
+    int kingID = isWhite ? 6 : 12;
+    for (int i = 0; i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (board[i][j] == kingID)
+            {
+                return { i,j };
+            }
+        }
+    }
+}
+bool IsKingInCheck(bool isWhite)
+{
+    Vector2i kingPos = FindKing(isWhite);
+    
+    int colorInd = isWhite ? 2 : 1;
+
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (PieceColor({i,j}) == colorInd)
+            {
+                GenerateMoves({ i,j });
+                if (generatedMoves[kingPos.x][kingPos.y])
+                {
+                    checkSquare = kingPos;
+                    return true;
+                }
+            }
+        }
+    }
+    checkSquare = { -1,-1 };
+    return false;
 }
