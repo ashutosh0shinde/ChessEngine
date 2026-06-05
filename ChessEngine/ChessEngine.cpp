@@ -42,19 +42,24 @@ Vector2i directions[8] =
     {-1,1},  //down left
 };
 
+bool selectedSquares[8][8];    
+Vector2i selectedPiece;
+
 int PieceColor(Vector2i pos);
 void GenerateMoves(Vector2i pos);
-
+bool IsEnemy(Vector2i target, Vector2i enemyTo);
+int WhichPiece(Vector2i pos);
+void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps);
+bool MakeMove(Vector2i piecePos, Vector2i targetPos);
+void PrintGeneratedMoves();
 
 int main()
 {
 
 
-    bool selectedSquares[8][8];
 
     bool isPressed = false;
 
-    Vector2i selectedPiece;
     selectedPiece.x = -1;
     selectedPiece.y = -1;
 
@@ -128,16 +133,7 @@ int main()
                     {
                         int x = pos.y / sqSize;
                         int y = pos.x / sqSize;
-                        if (y != selectedPiece.y || x != selectedPiece.x)
-                        {
-                            board[x][y] = board[selectedPiece.x][selectedPiece.y];
-                            board[selectedPiece.x][selectedPiece.y] = EMPTY;
-                        }
-                        selectedPiece.x = -1;
-                        for (int i = 0; i < 8 * 8;i++)
-                        {
-                            *(*selectedSquares + i) = false;
-                        }
+                        MakeMove(selectedPiece, { x,y });
                     }
                 }
 
@@ -194,6 +190,37 @@ int main()
             }
         }
         window.display();
+    }
+}
+bool MakeMove(Vector2i piecePos, Vector2i targetPos)
+{
+    int x = targetPos.x;
+    int y = targetPos.y;
+    if (generatedMoves[x][y])
+    {
+        if (y != selectedPiece.y || x != selectedPiece.x)
+        {
+            board[x][y] = board[selectedPiece.x][selectedPiece.y];
+            board[selectedPiece.x][selectedPiece.y] = EMPTY;
+        }
+    }
+    selectedPiece.x = -1;
+    for (int i = 0; i < 8 * 8;i++)
+    {
+        *(*selectedSquares + i) = false;
+    }
+    return true;
+}
+void PrintGeneratedMoves()
+{
+    cout << endl;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0; j < 8;j++)
+        {
+            cout << generatedMoves[i][j] << " ";
+        }
+        cout << endl;
     }
 }
 int PieceColor(Vector2i pos) //0-empty 1-white 2-black
