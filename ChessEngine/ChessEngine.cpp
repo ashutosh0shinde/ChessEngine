@@ -14,7 +14,14 @@ enum Piece
     WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
     BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
 };
+struct PrevMove
+{
+    Vector2i startPos;
+    Vector2i endPos;
 
+    int startPiece;
+    int endPiece;
+}prevMov;
 //default board
 int board[8][8] =
 {
@@ -28,6 +35,7 @@ int board[8][8] =
     {2,3,4,5,6,4,3,2}
 };
 bool generatedMoves[8][8];
+bool generatedMovesTEMP[8][8];
 
 Vector2i directions[8] =
 {
@@ -47,7 +55,7 @@ Vector2i selectedPiece;
 Vector2i checkSquare = { -1,-1 };
 
 int PieceColor(Vector2i pos);
-void GenerateMoves(Vector2i pos);
+void GenerateMoves(Vector2i pos, bool ignorePin = false);
 bool IsEnemy(Vector2i target, Vector2i enemyTo);
 int WhichPiece(Vector2i pos);
 void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps);
@@ -55,7 +63,9 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos);
 void PrintGeneratedMoves();
 bool IsKingInCheck(bool isWhite);
 Vector2i FindKing(bool isWhite);
-
+void UndoMove();
+void BackupGeneratedMoves();
+void RestoreGeneratedMoves();
 int main()
 {
 
@@ -101,6 +111,10 @@ int main()
 
 
         Vector2i pos = Mouse::getPosition(window);
+        if (Mouse::isButtonPressed(Mouse::Button::Right))
+        {
+            UndoMove();
+        }
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
             if (!isPressed)
@@ -200,6 +214,7 @@ int main()
         window.display();
     }
 }
+
 bool MakeMove(Vector2i piecePos, Vector2i targetPos)
 {
     int x = targetPos.x;
@@ -208,7 +223,12 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos)
     {
         if (y != selectedPiece.y || x != selectedPiece.x)
         {
+            prevMov.endPiece = board[x][y];
             board[x][y] = board[selectedPiece.x][selectedPiece.y];
+            prevMov.startPos = selectedPiece;
+            prevMov.endPos = { x,y };
+            prevMov.startPiece = board[selectedPiece.x][selectedPiece.y];
+
             board[selectedPiece.x][selectedPiece.y] = EMPTY;
         }
     }
@@ -218,8 +238,15 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos)
         *(*selectedSquares + i) = false;
     }
 
-    bool isWhite = PieceColor(targetPos) == 1 ? false : true;
-    IsKingInCheck(isWhite);
+    bool isWhite = PieceColor(targetPos) == 1 ? true : false;
+
+    if (IsKingInCheck(isWhite))
+    {
+        cout << "sdfsfe";
+        UndoMove();
+        return false;
+    }
+    IsKingInCheck(!isWhite);
     return true;
 }
 void PrintGeneratedMoves()
@@ -296,7 +323,7 @@ void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps
         }
     }
 }
-void GenerateMoves(Vector2i pos)
+void GenerateMoves(Vector2i pos, bool ignorePin)
 {
     for (int i = 0; i < 8;i++)
     {
@@ -309,6 +336,7 @@ void GenerateMoves(Vector2i pos)
     if (PieceColor(pos) == EMPTY)
         return;
 
+   
     bool isWhite = PieceColor(pos) == 1 ? true : false;
     int pieceType = WhichPiece(pos);
 
@@ -359,8 +387,10 @@ void GenerateMoves(Vector2i pos)
             int y = pos.y + knightCoords[i].y;
             if (x < 0 || y < 0 || x > 7 || y > 7)
                 continue;
-            if (IsEnemy({x,y}, pos))
+            if (IsEnemy({ x,y }, pos))
+            {
                 generatedMoves[x][y] = true;
+            }
         }
 
         break;
@@ -379,6 +409,14 @@ void GenerateMoves(Vector2i pos)
     default:
         break;
     }
+}
+void UndoMove()
+{
+    board[prevMov.startPos.x][prevMov.startPos.y] = prevMov.startPiece;
+    board[prevMov.endPos.x][prevMov.endPos.y] = prevMov.endPiece;
+
+    if (!IsKingInCheck(true))
+        IsKingInCheck(false);
 }
 Vector2i FindKing(bool isWhite)
 {
@@ -406,7 +444,7 @@ bool IsKingInCheck(bool isWhite)
         {
             if (PieceColor({i,j}) == colorInd)
             {
-                GenerateMoves({ i,j });
+                GenerateMoves({ i,j },true);
                 if (generatedMoves[kingPos.x][kingPos.y])
                 {
                     checkSquare = kingPos;
@@ -417,4 +455,24 @@ bool IsKingInCheck(bool isWhite)
     }
     checkSquare = { -1,-1 };
     return false;
+}
+void BackupGeneratedMoves()
+{
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            generatedMovesTEMP[i][j] = generatedMoves[i][j];
+        }
+    }
+}
+void RestoreGeneratedMoves()
+{
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            generatedMoves[i][j] = generatedMovesTEMP[i][j];
+        }
+    }
 }
