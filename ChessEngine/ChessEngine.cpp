@@ -8,6 +8,8 @@ unsigned int windowWidth = 650;
 unsigned int windowHeight = 650;
 float sqSize = windowHeight / 8.f;
 
+bool isWhiteTurn = true;
+
 enum Piece
 {
     EMPTY = 0,
@@ -35,7 +37,7 @@ int board[8][8] =
     {2,3,4,5,6,4,3,2}
 };
 bool generatedMoves[8][8];
-bool legalMoves[8][8];
+bool generatedMovesTEMP[8][8];
 
 Vector2i directions[8] =
 {
@@ -50,7 +52,7 @@ Vector2i directions[8] =
     {-1,1},  //down left
 };
 
-bool selectedSquares[8][8];    
+bool selectedSquares[8][8];
 Vector2i selectedPiece;
 Vector2i checkSquare = { -1,-1 };
 
@@ -64,8 +66,8 @@ void PrintGeneratedMoves();
 bool IsKingInCheck(bool isWhite);
 Vector2i FindKing(bool isWhite);
 void UndoMove();
-void GenerateLegalMoves(bool isWhite);
-
+void BackupGeneratedMoves();
+void RestoreGeneratedMoves();
 int main()
 {
 
@@ -76,7 +78,7 @@ int main()
     selectedPiece.x = -1;
     selectedPiece.y = -1;
 
-    
+
     Texture piecesTexture[13];
 
     RenderWindow window(sf::VideoMode({ windowWidth, windowHeight }), "Chess");
@@ -127,21 +129,27 @@ int main()
                 {
                     selectedPiece.x = x;
                     selectedPiece.y = y;
-
-                    for (int i = 0; i < 8 * 8;i++)
+                    
+                    if ((isWhiteTurn && PieceColor(selectedPiece) == 1) || (!isWhiteTurn && PieceColor(selectedPiece) == 2))
                     {
-                        *(*selectedSquares + i) = false;
-                    }
-                    selectedSquares[x][y] = true;
-
-                    GenerateMoves({ x,y });
-                    for (int i = 0; i < 8;i++)
-                    {
-                        for (int j = 0;j < 8;j++)
+                        for (int i = 0; i < 8 * 8;i++)
                         {
-                            if (generatedMoves[i][j])
-                                selectedSquares[i][j] = true;
+                            *(*selectedSquares + i) = false;
                         }
+                        selectedSquares[x][y] = true;
+
+                        GenerateMoves({ x,y });
+                        for (int i = 0; i < 8;i++)
+                        {
+                            for (int j = 0;j < 8;j++)
+                            {
+                                if (generatedMoves[i][j])
+                                    selectedSquares[i][j] = true;
+                            }
+                        }
+                    }
+                    else {
+                        selectedPiece = { -1,-1 };
                     }
                 }
                 else
@@ -150,7 +158,10 @@ int main()
                     {
                         int x = pos.y / sqSize;
                         int y = pos.x / sqSize;
-                        MakeMove(selectedPiece, { x,y });
+
+                        if(MakeMove(selectedPiece, { x,y }))
+                            isWhiteTurn = !isWhiteTurn;
+                        
                     }
                 }
 
@@ -194,7 +205,7 @@ int main()
                 }
                 else
                 {
-                    rect.setFillColor(Color(180, 143, 74));
+                    rect.setFillColor(Color(141, 96, 37));
                 }
 
                 if (checkSquare.x == row && checkSquare.y == col)
@@ -219,6 +230,8 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos)
 {
     int x = targetPos.x;
     int y = targetPos.y;
+
+    bool moveMade = false;
     if (generatedMoves[x][y])
     {
         if (y != selectedPiece.y || x != selectedPiece.x)
@@ -230,6 +243,7 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos)
             prevMov.startPiece = board[selectedPiece.x][selectedPiece.y];
 
             board[selectedPiece.x][selectedPiece.y] = EMPTY;
+            moveMade = true;
         }
     }
     selectedPiece.x = -1;
@@ -247,7 +261,7 @@ bool MakeMove(Vector2i piecePos, Vector2i targetPos)
         return false;
     }
     IsKingInCheck(!isWhite);
-    return true;
+    return moveMade;
 }
 void PrintGeneratedMoves()
 {
@@ -313,7 +327,7 @@ void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps
             newPos.x += directions[i].x;
             newPos.y += directions[i].y;
 
-            if (newPos.x < 0 || newPos.x > 7 || newPos.y < 0 || newPos.y > 7 || !IsEnemy(newPos,pos))
+            if (newPos.x < 0 || newPos.x > 7 || newPos.y < 0 || newPos.y > 7 || !IsEnemy(newPos, pos))
                 break;
 
             generatedMoves[newPos.x][newPos.y] = true;
@@ -336,7 +350,7 @@ void GenerateMoves(Vector2i pos, bool ignorePin)
     if (PieceColor(pos) == EMPTY)
         return;
 
-   
+
     bool isWhite = PieceColor(pos) == 1 ? true : false;
     int pieceType = WhichPiece(pos);
 
@@ -345,13 +359,13 @@ void GenerateMoves(Vector2i pos, bool ignorePin)
     case 1: //pawn
         if (isWhite)
         {
-            if (board[pos.x-1][pos.y] == EMPTY)
+            if (board[pos.x - 1][pos.y] == EMPTY)
             {
-                generatedMoves[pos.x-1][pos.y] = true;
+                generatedMoves[pos.x - 1][pos.y] = true;
 
-                if (pos.x == 6 && board[pos.x-2][pos.y] == EMPTY)
+                if (pos.x == 6 && board[pos.x - 2][pos.y] == EMPTY)
                 {
-                    generatedMoves[pos.x-2][pos.y] = true;
+                    generatedMoves[pos.x - 2][pos.y] = true;
                 }
             }
             if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2)
@@ -404,7 +418,7 @@ void GenerateMoves(Vector2i pos, bool ignorePin)
         SlidingMovesGenerate(pos, isWhite, 0, 8);
         break;
     case 6: //King
-        SlidingMovesGenerate(pos, isWhite, 0, 8,1);
+        SlidingMovesGenerate(pos, isWhite, 0, 8, 1);
         break;
     default:
         break;
@@ -435,16 +449,16 @@ Vector2i FindKing(bool isWhite)
 bool IsKingInCheck(bool isWhite)
 {
     Vector2i kingPos = FindKing(isWhite);
-    
+
     int colorInd = isWhite ? 2 : 1;
 
     for (int i = 0;i < 8;i++)
     {
         for (int j = 0;j < 8;j++)
         {
-            if (PieceColor({i,j}) == colorInd)
+            if (PieceColor({ i,j }) == colorInd)
             {
-                GenerateMoves({ i,j },true);
+                GenerateMoves({ i,j }, true);
                 if (generatedMoves[kingPos.x][kingPos.y])
                 {
                     checkSquare = kingPos;
@@ -455,28 +469,24 @@ bool IsKingInCheck(bool isWhite)
     }
     checkSquare = { -1,-1 };
     return false;
-
 }
-void GenerateLegalMoves(Vector2i piece)
+void BackupGeneratedMoves()
 {
-    if (PieceColor(piece) == EMPTY)
-        return;
-    bool isWhite = PieceColor(piece) == 1 ? true : false;
-    int pieceId = board[piece.x][piece.y];
-    GenerateMoves({ piece.x,piece.y });
     for (int i = 0;i < 8;i++)
     {
         for (int j = 0;j < 8;j++)
         {
-            if (generatedMoves[i][j])
-            {
-                MakeMove({ piece.x,piece.y }, { i,j });
-                if (!IsKingInCheck(isWhite))
-                {
-                    legalMoves[i][j] = true;
-                }
-                UndoMove();
-            }
+            generatedMovesTEMP[i][j] = generatedMoves[i][j];
+        }
+    }
+}
+void RestoreGeneratedMoves()
+{
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            generatedMoves[i][j] = generatedMovesTEMP[i][j];
         }
     }
 }
