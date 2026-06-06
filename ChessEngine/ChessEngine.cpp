@@ -35,7 +35,7 @@ int board[8][8] =
     {2,3,4,5,6,4,3,2}
 };
 bool generatedMoves[8][8];
-bool generatedMovesTEMP[8][8];
+bool legalMoves[8][8];
 
 Vector2i directions[8] =
 {
@@ -64,8 +64,8 @@ void PrintGeneratedMoves();
 bool IsKingInCheck(bool isWhite);
 Vector2i FindKing(bool isWhite);
 void UndoMove();
-void BackupGeneratedMoves();
-void RestoreGeneratedMoves();
+void GenerateLegalMoves(bool isWhite);
+
 int main()
 {
 
@@ -194,7 +194,7 @@ int main()
                 }
                 else
                 {
-                    rect.setFillColor(Color(141, 96, 37));
+                    rect.setFillColor(Color(180, 143, 74));
                 }
 
                 if (checkSquare.x == row && checkSquare.y == col)
@@ -455,24 +455,28 @@ bool IsKingInCheck(bool isWhite)
     }
     checkSquare = { -1,-1 };
     return false;
+
 }
-void BackupGeneratedMoves()
+void GenerateLegalMoves(Vector2i piece)
 {
+    if (PieceColor(piece) == EMPTY)
+        return;
+    bool isWhite = PieceColor(piece) == 1 ? true : false;
+    int pieceId = board[piece.x][piece.y];
+    GenerateMoves({ piece.x,piece.y });
     for (int i = 0;i < 8;i++)
     {
         for (int j = 0;j < 8;j++)
         {
-            generatedMovesTEMP[i][j] = generatedMoves[i][j];
-        }
-    }
-}
-void RestoreGeneratedMoves()
-{
-    for (int i = 0;i < 8;i++)
-    {
-        for (int j = 0;j < 8;j++)
-        {
-            generatedMoves[i][j] = generatedMovesTEMP[i][j];
+            if (generatedMoves[i][j])
+            {
+                MakeMove({ piece.x,piece.y }, { i,j });
+                if (!IsKingInCheck(isWhite))
+                {
+                    legalMoves[i][j] = true;
+                }
+                UndoMove();
+            }
         }
     }
 }
