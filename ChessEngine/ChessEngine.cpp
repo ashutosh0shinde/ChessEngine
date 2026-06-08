@@ -74,6 +74,7 @@ struct Move
     Vector2i to;
 
     int movedPiece;
+    int capturedPiece;
 };
 
 vector<Move> prevMoves;
@@ -111,6 +112,7 @@ bool IsKingInCheck(bool isWhite);
 int WhichPiece(Vector2i pos);
 
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo);
+void UndoMove();
 
 void GenerateLegalMoves(Vector2i pos);
 void GeneratePsuedoMoves(Vector2i pos);
@@ -175,6 +177,10 @@ int main()
 
 
         Vector2i pos = Mouse::getPosition(window);
+        if (Mouse::isButtonPressed(Mouse::Button::Right))
+        {
+            UndoMove();
+        }
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
             if (!isPressed)
@@ -202,6 +208,7 @@ int main()
                     if (PieceColor(selectedPiece) != PieceColor({x,y}))
                     {
                         MakeMove(selectedPiece, {x,y});
+                        cout << IsKingInCheck(true) << endl;
                     }
                     selectedPiece.x = -1;
                     selectedPiece.y = -1;
@@ -281,27 +288,55 @@ int main()
 #pragma endregion
 
 #pragma region Moves
-bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
+bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo) 
 {
+    checkSquare = { -1,-1 };
+
     if (PieceColor(pieceFrom) == 0 || PieceColor(pieceFrom) == PieceColor(pieceTo))
         return false;
 
     GenerateLegalMoves(pieceFrom);
 
     Move prev;
-    for (auto mv : legalMoves)
+    for (auto& mv : legalMoves)
     {
         if (mv.to == pieceTo)
         {
             prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
             prev.from = pieceFrom;
             prev.to = pieceTo;
+            prev.capturedPiece = board[pieceTo.x][pieceTo.y];
+
+            prevMoves.push_back(prev);
 
             board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
             board[pieceFrom.x][pieceFrom.y] = 0;
+
+            if (IsKingInCheck(PieceColor(pieceTo) != 1))
+                checkSquare = FindKing(PieceColor(pieceTo) != 1);
+
+            return true;
         }
     }
-    return true;
+    if (IsKingInCheck(PieceColor(pieceTo) != 1))
+        checkSquare = FindKing(PieceColor(pieceTo) != 1);
+    return false;
+}
+void UndoMove()
+{
+    if (prevMoves.size() < 1)
+        return;
+    Move prev = prevMoves.back();
+
+    board[prev.from.x][prev.from.y] = prev.movedPiece;
+    board[prev.to.x][prev.to.y] = prev.capturedPiece;
+
+    if (IsKingInCheck(true))
+        checkSquare = FindKing(true);
+    else if (IsKingInCheck(false))
+        checkSquare = FindKing(false);
+    else
+        checkSquare = { -1,-1 };
 }
 #pragma endregion
 
@@ -441,8 +476,28 @@ void GeneratePsuedoMoves(Vector2i pos)
 }
 void GenerateLegalMoves(Vector2i pos)
 {
+    legalMoves.clear();
+    if (PieceColor(pos) == 0)
+        return;
+
+    bool isWhite = PieceColor(pos) == 1;
     GeneratePsuedoMoves(pos);
-    legalMoves = pseudoMoves; //temp
+    vector<Move> pseudoMovesCopy = pseudoMoves;
+    
+    for (auto& mv : pseudoMovesCopy)
+    {
+        int movedPiece = board[mv.from.x][mv.from.y];
+        int capturedPiece = board[mv.to.x][mv.to.y];
+
+        board[mv.to.x][mv.to.y] = movedPiece;
+        board[mv.from.x][mv.from.y] = EMPTY;
+
+        if (!IsKingInCheck(isWhite))
+            legalMoves.push_back(mv);
+
+        board[mv.to.x][mv.to.y] = capturedPiece;
+        board[mv.from.x][mv.from.y] = movedPiece;
+    }
 }
 #pragma endregion
 
@@ -477,6 +532,26 @@ bool IsKingInCheck(bool isWhite)
         {
             if (PieceColor({ x,y }) != 0 && PieceColor({ x,y }) != kingColor)
             {
+                int pieceType = WhichPiece({ x,y });
+
+                //check pawn attacks
+                if (pieceType == 1)
+                {
+                    bool isWhitePawn = PieceColor({ x,y }) == 1;
+
+                    if (isWhitePawn)
+                    {
+                        if (kingPos.x == x - 1 && (kingPos.y == y + 1 || kingPos.y == y - 1))
+                            return true;
+                    }
+                    else
+                    {
+                        if (kingPos.x == x + 1 && (kingPos.y == y + 1 || kingPos.y == y - 1))
+                            return true;
+                    }
+                    continue;
+                }
+
                 GeneratePsuedoMoves({ x,y });
 
                 for (auto& mv : pseudoMoves)
