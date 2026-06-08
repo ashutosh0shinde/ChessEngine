@@ -43,7 +43,11 @@ Vector2i directions[8] =
 
 #pragma region Eval
 
-float evalLimit = 2500;
+bool draw = false;
+bool blackWon = false;
+bool whiteWon = false;
+
+float evalMax = 2500;
 
 #pragma endregion
 
@@ -110,6 +114,9 @@ int PieceColor(Vector2i pos);
 Vector2i FindKing(bool isWhite);
 bool IsKingInCheck(bool isWhite);
 int WhichPiece(Vector2i pos);
+bool HasLegalMoves(bool isWhite);
+bool IsCheckmate(bool isWhite);
+bool IsStalemate(bool isWhite);
 
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo);
 void UndoMove();
@@ -134,9 +141,6 @@ bool isWhiteTurn = true;
 
 int main()
 {
-
-
-
     bool isPressed = false;
 
     selectedPiece.x = -1;
@@ -208,7 +212,6 @@ int main()
                     if (PieceColor(selectedPiece) != PieceColor({x,y}))
                     {
                         MakeMove(selectedPiece, {x,y});
-                        cout << IsKingInCheck(true) << endl;
                     }
                     selectedPiece.x = -1;
                     selectedPiece.y = -1;
@@ -232,7 +235,7 @@ int main()
 
 
         //EVAL BAR
-        RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (Evaluate() / evalLimit) * (windowHeight / 2.f) });
+        RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (Evaluate() / evalMax) * (windowHeight / 2.f) });
         evalRectangle.setFillColor(Color(30, 30, 30));
 
         for (int row = 0; row < 8;row++) //Board Drawing
@@ -326,6 +329,22 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
                 checkSquare = FindKing(PieceColor(pieceTo) != 1);
 
             prevMoves.push_back(prev);
+
+            //check for mate or draw
+            if (IsStalemate(PieceColor(pieceTo) != 1))
+            {
+                cout << "DRAW: STALEMATE";
+                draw = true;
+            }
+            else if (IsCheckmate(PieceColor(pieceTo) != 1))
+            {
+                cout << "CHECKMATE";
+                if (PieceColor(pieceTo) == 1)
+                    whiteWon = true;
+                else
+                    blackWon = true;
+            }
+
             return true;
         }
     }
@@ -408,7 +427,7 @@ void GeneratePsuedoMoves(Vector2i pos)
                     pseudoMoves.push_back(move);
                 }
             }
-            if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2)
+            if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2 && pos.y > 0)
             {
                 move.to.x = pos.x - 1;
                 move.to.y = pos.y - 1;
@@ -416,7 +435,7 @@ void GeneratePsuedoMoves(Vector2i pos)
             }
                 
 
-            if (PieceColor({ pos.x - 1,pos.y + 1 }) == 2)
+            if (PieceColor({ pos.x - 1,pos.y + 1 }) == 2 && pos.y < 7)
             {
                 move.to.x = pos.x - 1;
                 move.to.y = pos.y + 1;
@@ -440,14 +459,14 @@ void GeneratePsuedoMoves(Vector2i pos)
                 }
             }
 
-            if (PieceColor({ pos.x + 1,pos.y - 1 }) == 1)
+            if (PieceColor({ pos.x + 1,pos.y - 1 }) == 1 && pos.y > 0)
             {
                 move.to.x = pos.x + 1;
                 move.to.y = pos.y - 1;
                 pseudoMoves.push_back(move);
             }
 
-            if (PieceColor({ pos.x + 1,pos.y + 1 }) == 1)
+            if (PieceColor({ pos.x + 1,pos.y + 1 }) == 1 && pos.y < 7)
             {
                 move.to.x = pos.x + 1;
                 move.to.y = pos.y + 1;
@@ -488,6 +507,9 @@ void GeneratePsuedoMoves(Vector2i pos)
 }
 void GenerateLegalMoves(Vector2i pos)
 {
+    //GeneratePsuedoMoves(pos);
+    //legalMoves = pseudoMoves;
+    //return;
     legalMoves.clear();
     if (PieceColor(pos) == 0)
         return;
@@ -515,6 +537,32 @@ void GenerateLegalMoves(Vector2i pos)
 
 
 #pragma region PieceProperties
+bool HasLegalMoves(bool isWhite)
+{
+    for (int x = 0; x < 8; x++)
+    {
+        for (int y = 0; y < 8; y++)
+        {
+            if (PieceColor({ x, y }) != (isWhite ? 1 : 2))
+                continue;
+
+            GenerateLegalMoves({ x, y });
+
+            if (!legalMoves.empty())
+                return true;
+        }
+    }
+
+    return false;
+}
+bool IsCheckmate(bool isWhite)
+{
+    return !HasLegalMoves(isWhite) && IsKingInCheck(isWhite);
+}
+bool IsStalemate(bool isWhite)
+{
+    return !HasLegalMoves(isWhite) && !IsKingInCheck(isWhite);
+}
 Vector2i FindKing(bool isWhite)
 {
     int kingId = isWhite ? 6 : 12;
@@ -611,7 +659,7 @@ int PieceColor(Vector2i pos)
 
 void PrintPsuedoMoves()
 {
-    for (auto mv : pseudoMoves)
+    for (auto& mv : pseudoMoves)
     {
         cout << mv.from.x << ":" << mv.from.y << "  " << mv.to.x << ":" << mv.to.y << endl;
     }
@@ -619,7 +667,7 @@ void PrintPsuedoMoves()
 }
 void PrintLegalMoves()
 {
-    for (auto mv : legalMoves)
+    for (auto& mv : legalMoves)
     {
         cout << mv.from.x << ":" << mv.from.y << "  " << mv.to.x << ":" << mv.to.y << endl;
     }
@@ -632,6 +680,15 @@ void PrintLegalMoves()
 float Evaluate()
 {
     float eval = 0;
+
+    //check mated or drawn
+    if (draw)
+        return eval;
+    else if (whiteWon)
+        return evalMax;
+    else if (blackWon)
+        return -evalMax;
+
     //evaluation on the basis of material
     for (int i = 0; i < 8;i++)
     {
