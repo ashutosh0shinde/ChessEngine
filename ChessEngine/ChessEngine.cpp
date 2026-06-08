@@ -4,41 +4,28 @@ using namespace std;
 using namespace sf;
 
 
-unsigned int windowWidth = 650;
+#pragma region window
+
+unsigned int windowWidth = 680;
 unsigned int windowHeight = 650;
 float sqSize = windowHeight / 8.f;
+float evalWidth = 30.f;
 
-bool isWhiteTurn = true;
+#pragma endregion
 
-enum Piece
+#pragma region Coords
+
+Vector2i knightCoords[8] =
 {
-    EMPTY = 0,
-    WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
-    BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
+    {-2,-1},
+    {-2,1},
+    {-1,2},
+    {1,2},
+    {2,-1},
+    {2,1},
+    {1,-2},
+    {-1,-2}
 };
-struct PrevMove
-{
-    Vector2i startPos;
-    Vector2i endPos;
-
-    int startPiece;
-    int endPiece;
-}prevMov;
-//default board
-int board[8][8] =
-{
-    {8,9,10,11,12,10,9,8},
-    {7,7,7,7,7,7,7,7},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1},
-    {2,3,4,5,6,4,3,2}
-};
-bool generatedMoves[8][8];
-bool generatedMovesTEMP[8][8];
-
 Vector2i directions[8] =
 {
     {0,-1}, //up
@@ -52,22 +39,92 @@ Vector2i directions[8] =
     {-1,1},  //down left
 };
 
+#pragma endregion
+
+#pragma region Eval
+
+float evalLimit = 2500;
+
+#pragma endregion
+
+#pragma region Piece
+
+enum Piece
+{
+    EMPTY = 0,
+    WP = 1, WR = 2, WN = 3, WB = 4, WQ = 5, WK = 6,
+    BP = 7, BR = 8, BN = 9, BB = 10, BQ = 11, BK = 12
+};
+enum PieceValue
+{
+    P = 100,
+    N = 320,
+    B = 330,
+    R = 500,
+    Q = 900
+};
+
+#pragma endregion
+
+#pragma region Moves
+
+struct Move
+{
+    Vector2i from;
+    Vector2i to;
+
+    int movedPiece;
+};
+
+vector<Move> prevMoves;
+vector<Move> legalMoves;
+vector <Move> psuedoMoves;
+
+#pragma endregion
+
+#pragma region Board_&_UI
+
+//default board
+int board[8][8] =
+{
+    {8,9,10,11,12,10,9,8},
+    {7,7,7,7,7,7,7,7},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1},
+    {2,3,4,5,6,4,3,2}
+};
+
 bool selectedSquares[8][8];
 Vector2i selectedPiece;
 Vector2i checkSquare = { -1,-1 };
 
+#pragma endregion
+
+#pragma region Prototypes
+
 int PieceColor(Vector2i pos);
-void GenerateMoves(Vector2i pos, bool ignorePin = false);
-bool IsEnemy(Vector2i target, Vector2i enemyTo);
+bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo);
+void GenerateLegalMoves(Vector2i pos);
+void GeneratePsuedoMoves(Vector2i pos);
+void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps = 8);
 int WhichPiece(Vector2i pos);
-void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps);
-bool MakeMove(Vector2i piecePos, Vector2i targetPos);
-void PrintGeneratedMoves();
-bool IsKingInCheck(bool isWhite);
-Vector2i FindKing(bool isWhite);
-void UndoMove();
-void BackupGeneratedMoves();
-void RestoreGeneratedMoves();
+void PrintPsuedoMoves();
+void PrintLegalMoves();
+
+//Engine
+float Evaluate();
+
+#pragma endregion
+
+bool isWhiteTurn = true;
+
+
+//Functions Start
+#pragma region BOAED&MAIN
+
 int main()
 {
 
@@ -109,59 +166,47 @@ int main()
             if (event->is<sf::Event::Closed>())
                 window.close();
         }
-        window.clear(Color(127, 127, 127));
+        window.clear(Color(250, 250, 250));
 
 
         Vector2i pos = Mouse::getPosition(window);
-        if (Mouse::isButtonPressed(Mouse::Button::Right))
-        {
-            UndoMove();
-        }
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
             if (!isPressed)
             {
                 //select piece
-                int x = pos.y / sqSize;
-                int y = pos.x / sqSize;
+                int x = (pos.y) / sqSize;
+                int y = (pos.x - evalWidth) / sqSize;
 
-                if (board[x][y] != EMPTY && selectedPiece.x == -1)
+                if (board[x][y] != EMPTY && selectedPiece.x == -1 && pos.x >= 30)
                 {
                     selectedPiece.x = x;
                     selectedPiece.y = y;
-                    
-                    if ((isWhiteTurn && PieceColor(selectedPiece) == 1) || (!isWhiteTurn && PieceColor(selectedPiece) == 2))
-                    {
-                        for (int i = 0; i < 8 * 8;i++)
-                        {
-                            *(*selectedSquares + i) = false;
-                        }
-                        selectedSquares[x][y] = true;
 
-                        GenerateMoves({ x,y });
-                        for (int i = 0; i < 8;i++)
-                        {
-                            for (int j = 0;j < 8;j++)
-                            {
-                                if (generatedMoves[i][j])
-                                    selectedSquares[i][j] = true;
-                            }
-                        }
-                    }
-                    else {
-                        selectedPiece = { -1,-1 };
-                    }
+                    selectedSquares[x][y] = true;
+
+                    GenerateLegalMoves({x,y});
+                    //highlight Squares
+                    for (auto mv : legalMoves)
+                    {
+                        selectedSquares[mv.to.x][mv.to.y] = true;
+                    } 
                 }
-                else
+                else if (pos.x >= 30 && selectedPiece.x != -1)
                 {
-                    if (selectedPiece.x != -1)
+                    if (PieceColor(selectedPiece) != PieceColor({x,y}))
                     {
-                        int x = pos.y / sqSize;
-                        int y = pos.x / sqSize;
+                        MakeMove(selectedPiece, {x,y});
+                    }
+                    selectedPiece.x = -1;
+                    selectedPiece.y = -1;
 
-                        if(MakeMove(selectedPiece, { x,y }))
-                            isWhiteTurn = !isWhiteTurn;
-                        
+                    for (int i = 0; i < 8;i++)
+                    {
+                        for (int j = 0;j < 8;j++)
+                        {
+                            selectedSquares[i][j] = false;
+                        }
                     }
                 }
 
@@ -170,13 +215,15 @@ int main()
         }
         else
         {
-            //if(isPressed)
-                //cout << "Released, " << pos.x << " " << pos.y << endl << endl;
             isPressed = false;
         }
 
 
-        for (int row = 0; row < 8;row++)
+        //EVAL BAR
+        RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (Evaluate() / evalLimit) * (windowHeight / 2.f) });
+        evalRectangle.setFillColor(Color(30, 30, 30));
+
+        for (int row = 0; row < 8;row++) //Board Drawing
         {
             for (int col = 0; col < 8; col++)
             {
@@ -191,11 +238,11 @@ int main()
 
                     piece.setScale({ sqSize / size.x,   sqSize / size.y });
 
-                    piece.setPosition({ col * sqSize, row * sqSize });
+                    piece.setPosition({ col * sqSize + evalWidth, row * sqSize });
                 }
 
                 RectangleShape rect({ sqSize,sqSize });
-                rect.setPosition({ (sqSize * col),(sqSize * row) });
+                rect.setPosition({ (sqSize * col + evalWidth),(sqSize * row) });
                 rect.setOutlineThickness(1);
                 rect.setOutlineColor(Color(0, 0, 0));
 
@@ -222,74 +269,180 @@ int main()
                 window.draw(piece);
             }
         }
+        window.draw(evalRectangle);
         window.display();
     }
 }
+#pragma endregion
 
-bool MakeMove(Vector2i piecePos, Vector2i targetPos)
+#pragma region Moves
+bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 {
-    int x = targetPos.x;
-    int y = targetPos.y;
-
-    bool moveMade = false;
-    if (generatedMoves[x][y])
-    {
-        if (y != selectedPiece.y || x != selectedPiece.x)
-        {
-            prevMov.endPiece = board[x][y];
-            board[x][y] = board[selectedPiece.x][selectedPiece.y];
-            prevMov.startPos = selectedPiece;
-            prevMov.endPos = { x,y };
-            prevMov.startPiece = board[selectedPiece.x][selectedPiece.y];
-
-            board[selectedPiece.x][selectedPiece.y] = EMPTY;
-            moveMade = true;
-        }
-    }
-    selectedPiece.x = -1;
-    for (int i = 0; i < 8 * 8;i++)
-    {
-        *(*selectedSquares + i) = false;
-    }
-
-    bool isWhite = PieceColor(targetPos) == 1 ? true : false;
-
-    if (IsKingInCheck(isWhite))
-    {
-        cout << "sdfsfe";
-        UndoMove();
+    if (PieceColor(pieceFrom) == 0 || PieceColor(pieceFrom) == PieceColor(pieceTo))
         return false;
-    }
-    IsKingInCheck(!isWhite);
-    return moveMade;
-}
-void PrintGeneratedMoves()
-{
-    cout << endl;
-    for (int i = 0;i < 8;i++)
+
+    GenerateLegalMoves(pieceFrom);
+
+    Move prev;
+    for (auto mv : legalMoves)
     {
-        for (int j = 0; j < 8;j++)
+        if (mv.to == pieceTo)
         {
-            cout << generatedMoves[i][j] << " ";
+            prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
+            prev.from = pieceFrom;
+            prev.to = pieceTo;
+
+            board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
+            board[pieceFrom.x][pieceFrom.y] = 0;
         }
-        cout << endl;
+    }
+    return true;
+}
+#pragma endregion
+
+#pragma region MoveGeneration
+void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps)
+{
+    Move move;
+    move.from = pos;
+
+    Vector2i newPos;
+    for (int i = st; i < end;i++)
+    {
+        newPos = pos;
+        for (int j = 0; j < steps;j++)
+        {
+            newPos.x += directions[i].x;
+            newPos.y += directions[i].y;
+
+            if (newPos.x < 0 || newPos.x > 7 || newPos.y < 0 || newPos.y > 7 || PieceColor(pos) == PieceColor(newPos))
+                break;
+
+            move.to = newPos;
+            psuedoMoves.push_back(move);
+
+            if (PieceColor(newPos) != 0 && PieceColor(newPos) != PieceColor(pos))
+                break;
+        }
     }
 }
-int PieceColor(Vector2i pos) //0-empty 1-white 2-black
+void GeneratePsuedoMoves(Vector2i pos)
 {
-    if (board[pos.x][pos.y] == EMPTY)
-        return 0;
-    else if (board[pos.x][pos.y] <= 6)
-        return 1;
-    else if (board[pos.x][pos.y] > 6)
-        return 2;
+    psuedoMoves.clear();
+
+    int pieceType = WhichPiece(pos);
+    if (PieceColor(pos) == 0)
+        return;
+    bool isWhite = PieceColor(pos) == 1 ? true : false;
+
+    Move move;
+    move.from = pos;
+
+    switch (pieceType)
+    {
+    case 1: //pawn
+        if (isWhite)
+        {
+            if (board[pos.x - 1][pos.y] == EMPTY)
+            {
+                
+                move.to.x = pos.x - 1;
+                move.to.y = pos.y;
+                psuedoMoves.push_back(move);
+
+                if (pos.x == 6 && board[pos.x - 2][pos.y] == EMPTY)
+                {
+                    move.to.x = pos.x - 2;
+                    move.to.y = pos.y;
+                    psuedoMoves.push_back(move);
+                }
+            }
+            if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2)
+            {
+                move.to.x = pos.x - 1;
+                move.to.y = pos.y - 1;
+                psuedoMoves.push_back(move);
+            }
+                
+
+            if (PieceColor({ pos.x - 1,pos.y + 1 }) == 2)
+            {
+                move.to.x = pos.x - 1;
+                move.to.y = pos.y + 1;
+                psuedoMoves.push_back(move);
+            }
+        }
+        else
+        {
+            if (board[pos.x + 1][pos.y] == EMPTY)
+            {
+                move.to.x = pos.x + 1;
+                move.to.y = pos.y;
+                psuedoMoves.push_back(move);
+
+                if (pos.x == 1 && board[pos.x + 2][pos.y] == EMPTY)
+                {
+                    move.to.x = pos.x + 2;
+                    move.to.y = pos.y;
+                    psuedoMoves.push_back(move);
+                }
+            }
+
+            if (PieceColor({ pos.x + 1,pos.y - 1 }) == 1)
+            {
+                move.to.x = pos.x + 1;
+                move.to.y = pos.y - 1;
+                psuedoMoves.push_back(move);
+            }
+
+            if (PieceColor({ pos.x + 1,pos.y + 1 }) == 1)
+            {
+                move.to.x = pos.x + 1;
+                move.to.y = pos.y + 1;
+                psuedoMoves.push_back(move);
+            }
+        }
+        break;
+    case 2: //knight
+
+        for (int i = 0;i < 8;i++)
+        {
+            int x = pos.x + knightCoords[i].x;
+            int y = pos.y + knightCoords[i].y;
+            if (x < 0 || y < 0 || x > 7 || y > 7)
+                continue;
+            if (PieceColor({ x,y }) != PieceColor(pos))
+            {
+                move.to.x = x;
+                move.to.y = y;
+                psuedoMoves.push_back(move);
+            }
+        }
+
+        break;
+    case 3: //Bishop
+        GenerateSlidingMoves(pos, 4, 8);
+        break;
+    case 4: //Rook
+        GenerateSlidingMoves(pos, 0, 4);
+        break;
+    case 5: //Queen
+        GenerateSlidingMoves(pos, 0, 8);
+        break;
+    case 6: //King
+        GenerateSlidingMoves(pos, 0, 8, 1);
+        break;
+    }
 }
-bool IsEnemy(Vector2i target, Vector2i enemyTo)
+void GenerateLegalMoves(Vector2i pos)
 {
-    if (PieceColor(target) != PieceColor(enemyTo))
-        return true;
-    return false;
+    GeneratePsuedoMoves(pos);
+    legalMoves = psuedoMoves; //temp
 }
+#pragma endregion
+
+
+#pragma region PieceProperties
 int WhichPiece(Vector2i pos)
 {
     if (board[pos.x][pos.y] == EMPTY)
@@ -307,186 +460,67 @@ int WhichPiece(Vector2i pos)
     else if (board[pos.x][pos.y] == 6 || board[pos.x][pos.y] == 12)
         return 6;
 }
-
-
-Vector2i knightCoords[8] =
+int PieceColor(Vector2i pos)
 {
-    {-1,-2}, {1,-2},
-    {2,-1},  {2,1},
-    {1,2},   {-1,2},
-    {-2,1},  {-2,-1}
-};
-void SlidingMovesGenerate(Vector2i pos, bool isWhite, int st, int end, int steps = 8)
-{
-    Vector2i newPos;
-    for (int i = st; i < end;i++)
-    {
-        newPos = pos;
-        for (int j = 0; j < steps;j++)
-        {
-            newPos.x += directions[i].x;
-            newPos.y += directions[i].y;
+    int piece = board[pos.x][pos.y];
 
-            if (newPos.x < 0 || newPos.x > 7 || newPos.y < 0 || newPos.y > 7 || !IsEnemy(newPos, pos))
-                break;
+    if (piece == EMPTY)
+        return 0;
 
-            generatedMoves[newPos.x][newPos.y] = true;
+    if (piece <= 6)
+        return 1; // white
 
-            if (IsEnemy(newPos, pos) && WhichPiece(newPos) != EMPTY)
-                break;
-        }
-    }
+    return 2; // black
 }
-void GenerateMoves(Vector2i pos, bool ignorePin)
+#pragma endregion
+
+#pragma region Printing
+
+void PrintPsuedoMoves()
 {
+    for (auto mv : psuedoMoves)
+    {
+        cout << mv.from.x << ":" << mv.from.y << "  " << mv.to.x << ":" << mv.to.y << endl;
+    }
+    cout << endl;
+}
+void PrintLegalMoves()
+{
+    for (auto mv : legalMoves)
+    {
+        cout << mv.from.x << ":" << mv.from.y << "  " << mv.to.x << ":" << mv.to.y << endl;
+    }
+    cout << endl;
+}
+
+#pragma endregion
+
+#pragma region ENGINE
+float Evaluate()
+{
+    float eval = 0;
+    //evaluation on the basis of material
     for (int i = 0; i < 8;i++)
     {
         for (int j = 0;j < 8;j++)
         {
-            generatedMoves[i][j] = false;
-        }
-    }
-
-    if (PieceColor(pos) == EMPTY)
-        return;
-
-
-    bool isWhite = PieceColor(pos) == 1 ? true : false;
-    int pieceType = WhichPiece(pos);
-
-    switch (pieceType)
-    {
-    case 1: //pawn
-        if (isWhite)
-        {
-            if (board[pos.x - 1][pos.y] == EMPTY)
+            switch (board[i][j])
             {
-                generatedMoves[pos.x - 1][pos.y] = true;
-
-                if (pos.x == 6 && board[pos.x - 2][pos.y] == EMPTY)
-                {
-                    generatedMoves[pos.x - 2][pos.y] = true;
-                }
-            }
-            if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2)
-                generatedMoves[pos.x - 1][pos.y - 1] = true;
-
-            if (PieceColor({ pos.x - 1,pos.y + 1 }) == 2)
-                generatedMoves[pos.x - 1][pos.y + 1] = true;
-        }
-        else
-        {
-            if (board[pos.x + 1][pos.y] == EMPTY)
-            {
-                generatedMoves[pos.x + 1][pos.y] = true;
-
-                if (pos.x == 1 && board[pos.x + 2][pos.y] == EMPTY)
-                {
-                    generatedMoves[pos.x + 2][pos.y] = true;
-                }
-            }
-
-            if (PieceColor({ pos.x + 1,pos.y - 1 }) == 1)
-                generatedMoves[pos.x + 1][pos.y - 1] = true;
-
-            if (PieceColor({ pos.x + 1,pos.y + 1 }) == 1)
-                generatedMoves[pos.x + 1][pos.y + 1] = true;
-        }
-        break;
-    case 2: //knight
-
-        for (int i = 0;i < 8;i++)
-        {
-            int x = pos.x + knightCoords[i].x;
-            int y = pos.y + knightCoords[i].y;
-            if (x < 0 || y < 0 || x > 7 || y > 7)
-                continue;
-            if (IsEnemy({ x,y }, pos))
-            {
-                generatedMoves[x][y] = true;
-            }
-        }
-
-        break;
-    case 3: //Bishop
-        SlidingMovesGenerate(pos, isWhite, 4, 8);
-        break;
-    case 4: //Rook
-        SlidingMovesGenerate(pos, isWhite, 0, 4);
-        break;
-    case 5: //Queen
-        SlidingMovesGenerate(pos, isWhite, 0, 8);
-        break;
-    case 6: //King
-        SlidingMovesGenerate(pos, isWhite, 0, 8, 1);
-        break;
-    default:
-        break;
-    }
-}
-void UndoMove()
-{
-    board[prevMov.startPos.x][prevMov.startPos.y] = prevMov.startPiece;
-    board[prevMov.endPos.x][prevMov.endPos.y] = prevMov.endPiece;
-
-    if (!IsKingInCheck(true))
-        IsKingInCheck(false);
-}
-Vector2i FindKing(bool isWhite)
-{
-    int kingID = isWhite ? 6 : 12;
-    for (int i = 0; i < 8;i++)
-    {
-        for (int j = 0;j < 8;j++)
-        {
-            if (board[i][j] == kingID)
-            {
-                return { i,j };
+            case WP: eval += P; break;
+            case WN: eval += N; break;
+            case WB: eval += B; break;
+            case WR: eval += R; break;
+            case WQ: eval += Q; break;
+                     
+            case BP: eval -= P; break;
+            case BN: eval -= N; break;
+            case BB: eval -= B; break;
+            case BR: eval -= R; break;
+            case BQ: eval -= Q; break;
             }
         }
     }
-}
-bool IsKingInCheck(bool isWhite)
-{
-    Vector2i kingPos = FindKing(isWhite);
 
-    int colorInd = isWhite ? 2 : 1;
-
-    for (int i = 0;i < 8;i++)
-    {
-        for (int j = 0;j < 8;j++)
-        {
-            if (PieceColor({ i,j }) == colorInd)
-            {
-                GenerateMoves({ i,j }, true);
-                if (generatedMoves[kingPos.x][kingPos.y])
-                {
-                    checkSquare = kingPos;
-                    return true;
-                }
-            }
-        }
-    }
-    checkSquare = { -1,-1 };
-    return false;
+    return eval;
 }
-void BackupGeneratedMoves()
-{
-    for (int i = 0;i < 8;i++)
-    {
-        for (int j = 0;j < 8;j++)
-        {
-            generatedMovesTEMP[i][j] = generatedMoves[i][j];
-        }
-    }
-}
-void RestoreGeneratedMoves()
-{
-    for (int i = 0;i < 8;i++)
-    {
-        for (int j = 0;j < 8;j++)
-        {
-            generatedMoves[i][j] = generatedMovesTEMP[i][j];
-        }
-    }
-}
+#pragma endregion
