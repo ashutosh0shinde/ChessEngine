@@ -302,19 +302,30 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
     {
         if (mv.to == pieceTo)
         {
+
             prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
             prev.from = pieceFrom;
             prev.to = pieceTo;
             prev.capturedPiece = board[pieceTo.x][pieceTo.y];
 
-            prevMoves.push_back(prev);
 
             board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
             board[pieceFrom.x][pieceFrom.y] = 0;
 
+            if (prev.movedPiece == 1 && pieceFrom.x == 1 && pieceTo.x == 0)
+            {
+                board[pieceTo.x][pieceTo.y] = 5;
+            }
+            else if (prev.movedPiece == 7 && pieceFrom.x == 6 && pieceTo.x == 7)
+            {
+                board[pieceTo.x][pieceTo.y] = 11;
+            }
+
+
             if (IsKingInCheck(PieceColor(pieceTo) != 1))
                 checkSquare = FindKing(PieceColor(pieceTo) != 1);
 
+            prevMoves.push_back(prev);
             return true;
         }
     }
@@ -411,6 +422,7 @@ void GeneratePsuedoMoves(Vector2i pos)
                 move.to.y = pos.y + 1;
                 pseudoMoves.push_back(move);
             }
+
         }
         else
         {
