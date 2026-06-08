@@ -78,7 +78,7 @@ struct Move
 
 vector<Move> prevMoves;
 vector<Move> legalMoves;
-vector <Move> psuedoMoves;
+vector <Move> pseudoMoves;
 
 #pragma endregion
 
@@ -106,13 +106,18 @@ Vector2i checkSquare = { -1,-1 };
 #pragma region Prototypes
 
 int PieceColor(Vector2i pos);
+Vector2i FindKing(bool isWhite);
+bool IsKingInCheck(bool isWhite);
+int WhichPiece(Vector2i pos);
+
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo);
+
 void GenerateLegalMoves(Vector2i pos);
 void GeneratePsuedoMoves(Vector2i pos);
 void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps = 8);
-int WhichPiece(Vector2i pos);
-void PrintPsuedoMoves();
+
 void PrintLegalMoves();
+void PrintPsuedoMoves();
 
 //Engine
 float Evaluate();
@@ -319,7 +324,7 @@ void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps)
                 break;
 
             move.to = newPos;
-            psuedoMoves.push_back(move);
+            pseudoMoves.push_back(move);
 
             if (PieceColor(newPos) != 0 && PieceColor(newPos) != PieceColor(pos))
                 break;
@@ -328,7 +333,7 @@ void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps)
 }
 void GeneratePsuedoMoves(Vector2i pos)
 {
-    psuedoMoves.clear();
+    pseudoMoves.clear();
 
     int pieceType = WhichPiece(pos);
     if (PieceColor(pos) == 0)
@@ -348,20 +353,20 @@ void GeneratePsuedoMoves(Vector2i pos)
                 
                 move.to.x = pos.x - 1;
                 move.to.y = pos.y;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
 
                 if (pos.x == 6 && board[pos.x - 2][pos.y] == EMPTY)
                 {
                     move.to.x = pos.x - 2;
                     move.to.y = pos.y;
-                    psuedoMoves.push_back(move);
+                    pseudoMoves.push_back(move);
                 }
             }
             if (PieceColor({ pos.x - 1,pos.y - 1 }) == 2)
             {
                 move.to.x = pos.x - 1;
                 move.to.y = pos.y - 1;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
             }
                 
 
@@ -369,7 +374,7 @@ void GeneratePsuedoMoves(Vector2i pos)
             {
                 move.to.x = pos.x - 1;
                 move.to.y = pos.y + 1;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
             }
         }
         else
@@ -378,13 +383,13 @@ void GeneratePsuedoMoves(Vector2i pos)
             {
                 move.to.x = pos.x + 1;
                 move.to.y = pos.y;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
 
                 if (pos.x == 1 && board[pos.x + 2][pos.y] == EMPTY)
                 {
                     move.to.x = pos.x + 2;
                     move.to.y = pos.y;
-                    psuedoMoves.push_back(move);
+                    pseudoMoves.push_back(move);
                 }
             }
 
@@ -392,14 +397,14 @@ void GeneratePsuedoMoves(Vector2i pos)
             {
                 move.to.x = pos.x + 1;
                 move.to.y = pos.y - 1;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
             }
 
             if (PieceColor({ pos.x + 1,pos.y + 1 }) == 1)
             {
                 move.to.x = pos.x + 1;
                 move.to.y = pos.y + 1;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
             }
         }
         break;
@@ -415,7 +420,7 @@ void GeneratePsuedoMoves(Vector2i pos)
             {
                 move.to.x = x;
                 move.to.y = y;
-                psuedoMoves.push_back(move);
+                pseudoMoves.push_back(move);
             }
         }
 
@@ -437,12 +442,53 @@ void GeneratePsuedoMoves(Vector2i pos)
 void GenerateLegalMoves(Vector2i pos)
 {
     GeneratePsuedoMoves(pos);
-    legalMoves = psuedoMoves; //temp
+    legalMoves = pseudoMoves; //temp
 }
 #pragma endregion
 
 
 #pragma region PieceProperties
+Vector2i FindKing(bool isWhite)
+{
+    int kingId = isWhite ? 6 : 12;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (board[i][j] == kingId)
+            {
+                //cout << i << " " << j << endl;
+                return { i,j };
+            }
+        }
+    }
+    return { -1,-1 };
+}
+bool IsKingInCheck(bool isWhite)
+{
+    Vector2i kingPos = FindKing(isWhite);
+    if (kingPos.x < 0)
+        return false;
+
+    int kingColor = PieceColor(kingPos);
+    for (int x = 0; x < 8; x++)
+    {
+        for (int y = 0; y < 8; y++)
+        {
+            if (PieceColor({ x,y }) != 0 && PieceColor({ x,y }) != kingColor)
+            {
+                GeneratePsuedoMoves({ x,y });
+
+                for (auto& mv : pseudoMoves)
+                {
+                    if (mv.to == kingPos)
+                        return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 int WhichPiece(Vector2i pos)
 {
     if (board[pos.x][pos.y] == EMPTY)
@@ -478,7 +524,7 @@ int PieceColor(Vector2i pos)
 
 void PrintPsuedoMoves()
 {
-    for (auto mv : psuedoMoves)
+    for (auto mv : pseudoMoves)
     {
         cout << mv.from.x << ":" << mv.from.y << "  " << mv.to.x << ":" << mv.to.y << endl;
     }
