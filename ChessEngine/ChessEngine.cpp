@@ -261,8 +261,18 @@ int main()
 
 
         //EVAL BAR
-        RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (Evaluate() / evalMax) * (windowHeight / 2.f) });
+        float eval = Evaluate();
+        
+        if (eval < 10000)
+        {
+            if (eval > evalMax)
+                eval = evalMax - 20;
+            else if (eval < -evalMax)
+                eval = -evalMax + 20;
+        }
+        RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (eval / evalMax) * (windowHeight / 2.f) });
         evalRectangle.setFillColor(Color(30, 30, 30));
+        cout << eval/100 << endl;
 
         for (int row = 0; row < 8;row++) //Board Drawing
         {
@@ -744,9 +754,9 @@ float Evaluate()
     if (draw)
         return eval;
     else if (whiteWon)
-        return evalMax;
+        return 10000;
     else if (blackWon)
-        return -evalMax;
+        return -10000;
 
     //evaluation on the basis of material
     for (int i = 0; i < 8;i++)
