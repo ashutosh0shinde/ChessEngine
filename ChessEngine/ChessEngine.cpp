@@ -138,6 +138,7 @@ void PrintPsuedoMoves();
 //Engine
 float Evaluate();
 bool MakeMoveEngine(bool isWhite);
+float Minimax(bool isWhite, int depth);
 
 #pragma endregion
 
@@ -282,7 +283,7 @@ int main()
         }
         RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (eval / evalMax) * (windowHeight / 2.f) });
         evalRectangle.setFillColor(Color(30, 30, 30));
-        cout << eval/100 << endl;
+        //cout << eval/100 << endl;
 
         for (int row = 0; row < 8;row++) //Board Drawing
         {
@@ -560,7 +561,7 @@ vector<Move> GenerateAllLegalMoves(bool isWhite)
     {
         for (int j = 0;j < 8;j++)
         {
-            if (PieceColor({ i,j }) != 0 && (PieceColor({ i,j }) == 1 && isWhite))
+            if (PieceColor({ i,j }) != 0 && (PieceColor({i,j}) == 1 && isWhite) || (PieceColor({ i,j }) == 2 && !isWhite))
             {
                 GenerateLegalMoves({ i,j });
                 for (auto& mv : legalMoves)
@@ -746,33 +747,99 @@ void PrintLegalMoves()
 #pragma region ENGINE
 bool MakeMoveEngine(bool isWhite)
 {
-    vector<Move> allMoves;
+    int bestScore = isWhite ? INT_MIN : INT_MAX;
+    Move bestMove;
+    vector<Move> moves = GenerateAllLegalMoves(isWhite);
+    if (moves.empty())
+        return false;
 
-    for (int x = 0; x < 8; x++)
+    for (auto& mv : moves)
     {
-        for (int y = 0; y < 8; y++)
+        int movedPiece = board[mv.from.x][mv.from.y];
+        int capturedPiece = board[mv.to.x][mv.to.y];
+
+        board[mv.to.x][mv.to.y] = movedPiece;
+        board[mv.from.x][mv.from.y] = EMPTY;
+
+        int score = Minimax(!isWhiteTurn, 2);
+
+        board[mv.to.x][mv.to.y] = capturedPiece;
+        board[mv.from.x][mv.from.y] = movedPiece;
+
+        if (isWhite)
         {
-            if (PieceColor({ x,y }) != (isWhite ? 1 : 2))
-                continue;
-
-            GenerateLegalMoves({ x,y });
-
-            for (auto& mv : legalMoves)
-                allMoves.push_back(mv);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMove = mv;
+            }
+        }
+        else
+        {
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestMove = mv;
+            }
         }
     }
 
-    if (allMoves.empty())
-        return false;
+    return MakeMove(bestMove.from, bestMove.to);
+}
+float Minimax(bool isWhite, int depth)
+{
+    if (depth == 0)
+        return Evaluate();
 
-    int ind = rand() % allMoves.size();
+    auto moves = GenerateAllLegalMoves(isWhite);
+    cout << moves.size()<<endl;
 
-    MakeMove(
-        allMoves[ind].from,
-        allMoves[ind].to
-    );
+    if (moves.empty())
+        return Evaluate();
 
-    return true;
+    if (isWhite)
+    {
+        int bestScore = INT_MIN;
+
+        for (auto& mv : moves)
+        {
+            int movedPiece = board[mv.from.x][mv.from.y];
+            int capturedPiece = board[mv.to.x][mv.to.y];
+
+            board[mv.to.x][mv.to.y] = movedPiece;
+            board[mv.from.x][mv.from.y] = EMPTY;
+
+            int score = Minimax(false, depth - 1);
+
+            board[mv.to.x][mv.to.y] = capturedPiece;
+            board[mv.from.x][mv.from.y] = movedPiece;
+
+            bestScore = max(bestScore, score);
+        }
+
+        return bestScore;
+    }
+    else
+    {
+        int bestScore = INT_MAX;
+
+        for (auto& mv : moves)
+        {
+            int movedPiece = board[mv.from.x][mv.from.y];
+            int capturedPiece = board[mv.to.x][mv.to.y];
+
+            board[mv.to.x][mv.to.y] = movedPiece;
+            board[mv.from.x][mv.from.y] = EMPTY;
+
+            int score = Minimax(true, depth - 1);
+
+            board[mv.to.x][mv.to.y] = capturedPiece;
+            board[mv.from.x][mv.from.y] = movedPiece;
+
+            bestScore = min(bestScore, score);
+        }
+        return bestScore;
+    }
 }
 float Evaluate()
 {
@@ -822,6 +889,9 @@ float Evaluate()
             }
         }
     }
+
+    //eval += GenerateAllLegalMoves(true).size() / 2;
+    //eval -= GenerateAllLegalMoves(false).size() / 2;
 
     return eval;
 }
