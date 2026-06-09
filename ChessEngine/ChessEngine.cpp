@@ -116,6 +116,7 @@ Vector2i checkSquare = { -1,-1 };
 #pragma endregion
 
 #pragma region Prototypes
+void DrawWindow(auto& window, auto piecesTexture, bool clearSelected);
 
 int PieceColor(Vector2i pos);
 Vector2i FindKing(bool isWhite);
@@ -198,7 +199,7 @@ int main()
 
         if (!playAsWhite && isWhiteTurn)
         {
-            if(MakeMoveEngine(isWhiteTurn))
+            if (MakeMoveEngine(isWhiteTurn))
                 isWhiteTurn = !isWhiteTurn;
         }
 
@@ -225,9 +226,9 @@ int main()
 
                 if (board[x][y] != EMPTY && selectedPiece.x == -1 && pos.x >= 30)
                 {
-                    
 
-                    if (isWhiteTurn == (PieceColor({x,y}) == 1) && playAsWhite == isWhiteTurn)
+
+                    if (isWhiteTurn == (PieceColor({ x,y }) == 1) && playAsWhite == isWhiteTurn)
                     {
                         selectedPiece.x = x;
                         selectedPiece.y = y;
@@ -244,11 +245,13 @@ int main()
                 }
                 else if (pos.x >= 30 && selectedPiece.x != -1)
                 {
-                    if (PieceColor(selectedPiece) != PieceColor({x,y}))
+                    if (PieceColor(selectedPiece) != PieceColor({ x,y }))
                     {
-                        if(MakeMove(selectedPiece, {x,y}))
+                        if (MakeMove(selectedPiece, { x,y }))
                         {
                             isWhiteTurn = !isWhiteTurn;
+
+                            DrawWindow(window, piecesTexture, true);
 
                             auto start = chrono::high_resolution_clock::now();
 
@@ -258,10 +261,10 @@ int main()
                             auto end = chrono::high_resolution_clock::now();
                             double seconds = chrono::duration<double>(end - start).count();
 
-                            cout << "Nodes: "<<nodes << " NPS: "<<nodes/seconds << " Seconds: " << seconds << endl;
+                            cout << "Nodes: " << nodes << " NPS: " << nodes / seconds << " Seconds: " << seconds << endl;
                             nodes = 0;
                         }
-                        
+
                     }
                     selectedPiece.x = -1;
                     selectedPiece.y = -1;
@@ -282,71 +285,83 @@ int main()
         {
             isLeftPressed = false;
         }
-
-
-        //EVAL BAR
-        float eval = Evaluate();
-        
-        if (eval < 10000)
+        DrawWindow(window, piecesTexture, false);
+    }
+}
+void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
+{
+    if (clearSelected)
+    {
+        for (int i = 0; i < 8;i++)
         {
-            if (eval > evalMax)
-                eval = evalMax - 20;
-            else if (eval < -evalMax)
-                eval = -evalMax + 20;
-        }
-        RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (eval / evalMax) * (windowHeight / 2.f) });
-        evalRectangle.setFillColor(Color(30, 30, 30));
-        //cout << eval/100 << endl;
-
-        for (int row = 0; row < 8;row++) //Board Drawing
-        {
-            for (int col = 0; col < 8; col++)
+            for (int j = 0;j < 8;j++)
             {
-                //draw pieces
-                int pieceId = board[row][col];
-                Sprite piece(piecesTexture[pieceId]);
-
-                if (pieceId != EMPTY)
-                {
-
-                    Vector2u size = piecesTexture[pieceId].getSize();
-
-                    piece.setScale({ sqSize / size.x,   sqSize / size.y });
-
-                    piece.setPosition({ col * sqSize + evalWidth, row * sqSize });
-                }
-
-                RectangleShape rect({ sqSize,sqSize });
-                rect.setPosition({ (sqSize * col + evalWidth),(sqSize * row) });
-                rect.setOutlineThickness(1);
-                rect.setOutlineColor(Color(0, 0, 0));
-
-                if ((row + col) % 2 == 0)
-                {
-                    rect.setFillColor(Color(245, 231, 185));
-                }
-                else
-                {
-                    rect.setFillColor(Color(141, 96, 37));
-                }
-
-                if (checkSquare.x == row && checkSquare.y == col)
-                {
-                    rect.setFillColor(Color(255, 154, 129));
-                }
-
-                if (selectedSquares[row][col] == true)
-                {
-                    rect.setFillColor(Color(167, 240, 189));
-                }
-
-                window.draw(rect);
-                window.draw(piece);
+                selectedSquares[i][j] = false;
             }
         }
-        window.draw(evalRectangle);
-        window.display();
     }
+    //EVAL BAR
+    float eval = Evaluate();
+
+    if (eval < 10000)
+    {
+        if (eval > evalMax)
+            eval = evalMax - 20;
+        else if (eval < -evalMax)
+            eval = -evalMax + 20;
+    }
+    RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (eval / evalMax) * (windowHeight / 2.f) });
+    evalRectangle.setFillColor(Color(30, 30, 30));
+    //cout << eval/100 << endl;
+
+    for (int row = 0; row < 8;row++) //Board Drawing
+    {
+        for (int col = 0; col < 8; col++)
+        {
+            //draw pieces
+            int pieceId = board[row][col];
+            Sprite piece(piecesTexture[pieceId]);
+
+            if (pieceId != EMPTY)
+            {
+
+                Vector2u size = piecesTexture[pieceId].getSize();
+
+                piece.setScale({ sqSize / size.x,   sqSize / size.y });
+
+                piece.setPosition({ col * sqSize + evalWidth, row * sqSize });
+            }
+
+            RectangleShape rect({ sqSize,sqSize });
+            rect.setPosition({ (sqSize * col + evalWidth),(sqSize * row) });
+            rect.setOutlineThickness(1);
+            rect.setOutlineColor(Color(0, 0, 0));
+
+            if ((row + col) % 2 == 0)
+            {
+                rect.setFillColor(Color(245, 231, 185));
+            }
+            else
+            {
+                rect.setFillColor(Color(141, 96, 37));
+            }
+
+            if (checkSquare.x == row && checkSquare.y == col)
+            {
+                rect.setFillColor(Color(255, 154, 129));
+            }
+
+            if (selectedSquares[row][col] == true)
+            {
+                rect.setFillColor(Color(167, 240, 189));
+            }
+
+            window.draw(rect);
+            window.draw(piece);
+        }
+    }
+    window.draw(evalRectangle);
+    window.display();
 }
 #pragma endregion
 
@@ -477,7 +492,7 @@ void GeneratePsuedoMoves(Vector2i pos)
         {
             if (board[pos.x - 1][pos.y] == EMPTY)
             {
-                
+
                 move.to.x = pos.x - 1;
                 move.to.y = pos.y;
                 pseudoMoves.push_back(move);
@@ -495,7 +510,7 @@ void GeneratePsuedoMoves(Vector2i pos)
                 move.to.y = pos.y - 1;
                 pseudoMoves.push_back(move);
             }
-                
+
 
             if (PieceColor({ pos.x - 1,pos.y + 1 }) == 2 && pos.y < 7)
             {
@@ -593,7 +608,7 @@ vector<Move> GenerateAllLegalMoves(bool isWhite)
     {
         for (int j = 0;j < 8;j++)
         {
-            if (PieceColor({ i,j }) != 0 && (PieceColor({i,j}) == 1 && isWhite) || (PieceColor({ i,j }) == 2 && !isWhite))
+            if (PieceColor({ i,j }) != 0 && (PieceColor({ i,j }) == 1 && isWhite) || (PieceColor({ i,j }) == 2 && !isWhite))
             {
                 GenerateLegalMoves({ i,j });
                 for (auto& mv : legalMoves)
@@ -617,7 +632,7 @@ void GenerateLegalMoves(Vector2i pos)
     bool isWhite = PieceColor(pos) == 1;
     GeneratePsuedoMoves(pos);
     vector<Move> pseudoMovesCopy = pseudoMoves;
-    
+
     for (auto& mv : pseudoMovesCopy)
     {
         int movedPiece = board[mv.from.x][mv.from.y];
@@ -793,7 +808,7 @@ bool MakeMoveEngine(bool isWhite)
         board[mv.to.x][mv.to.y] = movedPiece;
         board[mv.from.x][mv.from.y] = EMPTY;
 
-        int score = Minimax(!isWhite, 2);
+        int score = Minimax(!isWhite, 3);
 
         board[mv.to.x][mv.to.y] = capturedPiece;
         board[mv.from.x][mv.from.y] = movedPiece;
@@ -905,7 +920,7 @@ float Evaluate()
             case WB: eval += B; whiteBishopCount++; break;
             case WR: eval += R; break;
             case WQ: eval += Q; break;
-                     
+
             case BP: eval -= P; break;
             case BN: eval -= N; break;
             case BB: eval -= B; blackBishopCount++; break;
