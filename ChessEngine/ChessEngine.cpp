@@ -130,6 +130,7 @@ void UndoMove();
 void GenerateLegalMoves(Vector2i pos);
 void GeneratePsuedoMoves(Vector2i pos);
 void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps = 8);
+vector<Move> GenerateAllLegalMoves(bool isWhite);
 
 void PrintLegalMoves();
 void PrintPsuedoMoves();
@@ -150,7 +151,8 @@ int main()
 {
     srand(time(nullptr));
 
-    bool isPressed = false;
+    bool isLeftPressed = false;
+    bool isRightPressed = false;
 
     selectedPiece.x = -1;
     selectedPiece.y = -1;
@@ -196,13 +198,21 @@ int main()
         }
 
         Vector2i pos = Mouse::getPosition(window);
-        //if (Mouse::isButtonPressed(Mouse::Button::Right))
-        //{
-        //    UndoMove();
-        //}
+        if (Mouse::isButtonPressed(Mouse::Button::Right))
+        {
+            if (!isRightPressed)
+            {
+                UndoMove();
+                isRightPressed = true;
+            }
+        }
+        else
+        {
+            isRightPressed = false;
+        }
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
-            if (!isPressed)
+            if (!isLeftPressed)
             {
                 //select piece
                 int x = (pos.y) / sqSize;
@@ -252,11 +262,11 @@ int main()
                 }
 
             }
-            isPressed = true;
+            isLeftPressed = true;
         }
         else
         {
-            isPressed = false;
+            isLeftPressed = false;
         }
 
 
@@ -396,6 +406,8 @@ void UndoMove()
 
     board[prev.from.x][prev.from.y] = prev.movedPiece;
     board[prev.to.x][prev.to.y] = prev.capturedPiece;
+
+    prevMoves.pop_back();
 
     if (IsKingInCheck(true))
         checkSquare = FindKing(true);
@@ -540,6 +552,25 @@ void GeneratePsuedoMoves(Vector2i pos)
         GenerateSlidingMoves(pos, 0, 8, 1);
         break;
     }
+}
+vector<Move> GenerateAllLegalMoves(bool isWhite)
+{
+    vector<Move> allMoves;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (PieceColor({ i,j }) != 0 && (PieceColor({ i,j }) == 1 && isWhite))
+            {
+                GenerateLegalMoves({ i,j });
+                for (auto& mv : legalMoves)
+                {
+                    allMoves.push_back(mv);
+                }
+            }
+        }
+    }
+    return allMoves;
 }
 void GenerateLegalMoves(Vector2i pos)
 {
