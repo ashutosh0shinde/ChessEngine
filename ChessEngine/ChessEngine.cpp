@@ -1,5 +1,9 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <random>
+#include <cstdlib>
+#include <ctime>
+
 using namespace std;
 using namespace sf;
 
@@ -48,6 +52,8 @@ bool blackWon = false;
 bool whiteWon = false;
 
 float evalMax = 2500;
+
+float bishopPairAdv = 40;
 
 #pragma endregion
 
@@ -130,10 +136,12 @@ void PrintPsuedoMoves();
 
 //Engine
 float Evaluate();
+bool MakeMoveEngine(bool isWhite);
 
 #pragma endregion
 
 bool isWhiteTurn = true;
+bool playAsWhite = true;
 
 
 //Functions Start
@@ -141,6 +149,8 @@ bool isWhiteTurn = true;
 
 int main()
 {
+    srand(time(nullptr));
+
     bool isPressed = false;
 
     selectedPiece.x = -1;
@@ -180,11 +190,17 @@ int main()
         window.clear(Color(250, 250, 250));
 
 
-        Vector2i pos = Mouse::getPosition(window);
-        if (Mouse::isButtonPressed(Mouse::Button::Right))
+        if (!playAsWhite && isWhiteTurn)
         {
-            UndoMove();
+            if(MakeMoveEngine(isWhiteTurn))
+                isWhiteTurn = !isWhiteTurn;
         }
+
+        Vector2i pos = Mouse::getPosition(window);
+        //if (Mouse::isButtonPressed(Mouse::Button::Right))
+        //{
+        //    UndoMove();
+        //}
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
             if (!isPressed)
@@ -195,23 +211,34 @@ int main()
 
                 if (board[x][y] != EMPTY && selectedPiece.x == -1 && pos.x >= 30)
                 {
-                    selectedPiece.x = x;
-                    selectedPiece.y = y;
+                    
 
-                    selectedSquares[x][y] = true;
-
-                    GenerateLegalMoves({x,y});
-                    //highlight Squares
-                    for (auto mv : legalMoves)
+                    if (isWhiteTurn == (PieceColor({x,y}) == 1) && playAsWhite == isWhiteTurn)
                     {
-                        selectedSquares[mv.to.x][mv.to.y] = true;
-                    } 
+                        selectedPiece.x = x;
+                        selectedPiece.y = y;
+
+                        selectedSquares[x][y] = true;
+
+                        GenerateLegalMoves({ x,y });
+                        //highlight Squares
+                        for (auto mv : legalMoves)
+                        {
+                            selectedSquares[mv.to.x][mv.to.y] = true;
+                        }
+                    }
                 }
                 else if (pos.x >= 30 && selectedPiece.x != -1)
                 {
                     if (PieceColor(selectedPiece) != PieceColor({x,y}))
                     {
-                        MakeMove(selectedPiece, {x,y});
+                        if(MakeMove(selectedPiece, {x,y}))
+                        {
+                            isWhiteTurn = !isWhiteTurn;
+                            if (MakeMoveEngine(isWhiteTurn))
+                                isWhiteTurn = !isWhiteTurn;
+                        }
+                        
                     }
                     selectedPiece.x = -1;
                     selectedPiece.y = -1;
@@ -291,7 +318,7 @@ int main()
 #pragma endregion
 
 #pragma region Moves
-bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo) 
+bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 {
     checkSquare = { -1,-1 };
 
@@ -628,17 +655,17 @@ int WhichPiece(Vector2i pos)
 {
     if (board[pos.x][pos.y] == EMPTY)
         return 0;
-    else if (board[pos.x][pos.y] == 1 || board[pos.x][pos.y] == 7)
+    else if (board[pos.x][pos.y] == 1 || board[pos.x][pos.y] == 7) //Pawn
         return 1;
-    else if (board[pos.x][pos.y] == 3 || board[pos.x][pos.y] == 9)
+    else if (board[pos.x][pos.y] == 3 || board[pos.x][pos.y] == 9)//Knight
         return 2;
-    else if (board[pos.x][pos.y] == 4 || board[pos.x][pos.y] == 10)
+    else if (board[pos.x][pos.y] == 4 || board[pos.x][pos.y] == 10)//Bishop
         return 3;
-    else if (board[pos.x][pos.y] == 2 || board[pos.x][pos.y] == 8)
+    else if (board[pos.x][pos.y] == 2 || board[pos.x][pos.y] == 8)//Rook
         return 4;
-    else if (board[pos.x][pos.y] == 5 || board[pos.x][pos.y] == 11)
+    else if (board[pos.x][pos.y] == 5 || board[pos.x][pos.y] == 11)//Queen
         return 5;
-    else if (board[pos.x][pos.y] == 6 || board[pos.x][pos.y] == 12)
+    else if (board[pos.x][pos.y] == 6 || board[pos.x][pos.y] == 12)//King
         return 6;
 }
 int PieceColor(Vector2i pos)
@@ -677,9 +704,42 @@ void PrintLegalMoves()
 #pragma endregion
 
 #pragma region ENGINE
+bool MakeMoveEngine(bool isWhite)
+{
+    vector<Move> allMoves;
+
+    for (int x = 0; x < 8; x++)
+    {
+        for (int y = 0; y < 8; y++)
+        {
+            if (PieceColor({ x,y }) != (isWhite ? 1 : 2))
+                continue;
+
+            GenerateLegalMoves({ x,y });
+
+            for (auto& mv : legalMoves)
+                allMoves.push_back(mv);
+        }
+    }
+
+    if (allMoves.empty())
+        return false;
+
+    int ind = rand() % allMoves.size();
+
+    MakeMove(
+        allMoves[ind].from,
+        allMoves[ind].to
+    );
+
+    return true;
+}
 float Evaluate()
 {
     float eval = 0;
+
+    int whiteBishopCount = 0;
+    int blackBishopCount = 0;
 
     //check mated or drawn
     if (draw)
@@ -698,15 +758,27 @@ float Evaluate()
             {
             case WP: eval += P; break;
             case WN: eval += N; break;
-            case WB: eval += B; break;
+            case WB: eval += B; whiteBishopCount++; break;
             case WR: eval += R; break;
             case WQ: eval += Q; break;
                      
             case BP: eval -= P; break;
             case BN: eval -= N; break;
-            case BB: eval -= B; break;
+            case BB: eval -= B; blackBishopCount++; break;
             case BR: eval -= R; break;
             case BQ: eval -= Q; break;
+            }
+
+            //Bishop Pair advantage
+            if (whiteBishopCount == 2)
+            {
+                eval += bishopPairAdv;
+                whiteBishopCount = INT_MIN;
+            }
+            if (blackBishopCount == 2)
+            {
+                eval -= bishopPairAdv;
+                blackBishopCount = INT_MIN;
             }
         }
     }
