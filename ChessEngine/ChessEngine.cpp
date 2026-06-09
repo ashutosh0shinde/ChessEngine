@@ -1,8 +1,6 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
-#include <random>
-#include <cstdlib>
-#include <ctime>
+#include<chrono>
 
 using namespace std;
 using namespace sf;
@@ -50,6 +48,9 @@ Vector2i directions[8] =
 bool draw = false;
 bool blackWon = false;
 bool whiteWon = false;
+
+int whiteTotalLegalMoves = 0;
+int blackTotalLegalMoves = 0;
 
 float evalMax = 2500;
 
@@ -131,6 +132,7 @@ void GenerateLegalMoves(Vector2i pos);
 void GeneratePsuedoMoves(Vector2i pos);
 void GenerateSlidingMoves(Vector2i pos, int st, int end, int steps = 8);
 vector<Move> GenerateAllLegalMoves(bool isWhite);
+vector<Move> GenerateAllPseudoMoves(bool isWhite);
 
 void PrintLegalMoves();
 void PrintPsuedoMoves();
@@ -143,7 +145,9 @@ float Minimax(bool isWhite, int depth);
 #pragma endregion
 
 bool isWhiteTurn = true;
-bool playAsWhite = true;
+bool playAsWhite = false;
+
+int nodes;
 
 //Functions Start
 #pragma region BOAED&MAIN
@@ -245,8 +249,17 @@ int main()
                         if(MakeMove(selectedPiece, {x,y}))
                         {
                             isWhiteTurn = !isWhiteTurn;
+
+                            auto start = chrono::high_resolution_clock::now();
+
                             if (MakeMoveEngine(isWhiteTurn))
                                 isWhiteTurn = !isWhiteTurn;
+
+                            auto end = chrono::high_resolution_clock::now();
+                            double seconds = chrono::duration<double>(end - start).count();
+
+                            cout << "Nodes: "<<nodes << " NPS: "<<nodes/seconds << " Seconds: " << seconds << endl;
+                            nodes = 0;
                         }
                         
                     }
@@ -554,6 +567,25 @@ void GeneratePsuedoMoves(Vector2i pos)
         break;
     }
 }
+vector<Move> GenerateAllPseudoMoves(bool isWhite)
+{
+    vector<Move> allMoves;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (PieceColor({ i,j }) != 0 && (PieceColor({ i,j }) == 1 && isWhite) || (PieceColor({ i,j }) == 2 && !isWhite))
+            {
+                GeneratePsuedoMoves({ i,j });
+                for (auto& mv : pseudoMoves)
+                {
+                    allMoves.push_back(mv);
+                }
+            }
+        }
+    }
+    return allMoves;
+}
 vector<Move> GenerateAllLegalMoves(bool isWhite)
 {
     vector<Move> allMoves;
@@ -761,7 +793,7 @@ bool MakeMoveEngine(bool isWhite)
         board[mv.to.x][mv.to.y] = movedPiece;
         board[mv.from.x][mv.from.y] = EMPTY;
 
-        int score = Minimax(!isWhiteTurn, 2);
+        int score = Minimax(!isWhite, 2);
 
         board[mv.to.x][mv.to.y] = capturedPiece;
         board[mv.from.x][mv.from.y] = movedPiece;
@@ -788,14 +820,19 @@ bool MakeMoveEngine(bool isWhite)
 }
 float Minimax(bool isWhite, int depth)
 {
+    nodes++;
     if (depth == 0)
         return Evaluate();
 
     auto moves = GenerateAllLegalMoves(isWhite);
-    cout << moves.size()<<endl;
 
     if (moves.empty())
-        return Evaluate();
+    {
+        if (IsKingInCheck(isWhite))
+            return isWhite ? -100000 : 100000;
+
+        return 0; // stalemate
+    }
 
     if (isWhite)
     {
@@ -890,8 +927,8 @@ float Evaluate()
         }
     }
 
-    //eval += GenerateAllLegalMoves(true).size() / 2;
-    //eval -= GenerateAllLegalMoves(false).size() / 2;
+    eval += GenerateAllPseudoMoves(true).size() / 2;
+    eval -= GenerateAllPseudoMoves(false).size() / 2;
 
     return eval;
 }
