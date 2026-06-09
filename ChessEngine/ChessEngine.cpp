@@ -143,7 +143,6 @@ bool MakeMoveEngine(bool isWhite);
 bool isWhiteTurn = true;
 bool playAsWhite = true;
 
-
 //Functions Start
 #pragma region BOAED&MAIN
 
