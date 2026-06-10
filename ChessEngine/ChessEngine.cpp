@@ -103,10 +103,10 @@ int board[8][8] =
     {7,7,7,7,7,7,7,7},
     {0,0,0,0,0,0,0,0},
     {0,0,0,0,0,0,0,0},
+    {0,0,0,10,0,11,0,10},
     {0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,1,1},
-    {2,3,4,5,6,4,3,2}
+    {1,1,1,1,1,1,0,1},
+    {2,3,4,5,6,0,0,0}
 };
 
 bool selectedSquares[8][8];
@@ -146,7 +146,7 @@ float Minimax(bool isWhite, int depth);
 #pragma endregion
 
 bool isWhiteTurn = true;
-bool playAsWhite = false;
+bool playAsWhite = true;
 
 int nodes;
 
@@ -197,7 +197,7 @@ int main()
         window.clear(Color(250, 250, 250));
 
 
-        if (!playAsWhite && isWhiteTurn)
+        if (!playAsWhite && isWhiteTurn && !whiteWon && !blackWon && !draw)
         {
             if (MakeMoveEngine(isWhiteTurn))
                 isWhiteTurn = !isWhiteTurn;
@@ -303,7 +303,7 @@ void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
     //EVAL BAR
     float eval = Evaluate();
 
-    if (eval < 10000)
+    if (eval < 5000 && eval > -5000)
     {
         if (eval > evalMax)
             eval = evalMax - 20;
@@ -808,7 +808,7 @@ bool MakeMoveEngine(bool isWhite)
         board[mv.to.x][mv.to.y] = movedPiece;
         board[mv.from.x][mv.from.y] = EMPTY;
 
-        int score = Minimax(!isWhite, 3);
+        int score = Minimax(!isWhite, 2);
 
         board[mv.to.x][mv.to.y] = capturedPiece;
         board[mv.from.x][mv.from.y] = movedPiece;
