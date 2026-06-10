@@ -74,7 +74,14 @@ enum PieceValue
     R = 500,
     Q = 900
 };
+bool hasWhiteKingMoved;
+bool hasBlackKingMoved;
 
+bool hasWhiteKingRookMoved;
+bool hasWhiteQueenRookMoved;
+
+bool hasBlackKingRookMoved;
+bool hasBlackQueenRookMoved;
 #pragma endregion
 
 #pragma region Moves
@@ -86,6 +93,9 @@ struct Move
 
     int movedPiece;
     int capturedPiece;
+
+    bool isCastle = false;
+    Vector2i rookSquare;
 };
 
 vector<Move> prevMoves;
@@ -103,10 +113,10 @@ int board[8][8] =
     {7,7,7,7,7,7,7,7},
     {0,0,0,0,0,0,0,0},
     {0,0,0,0,0,0,0,0},
-    {0,0,0,10,0,11,0,10},
     {0,0,0,0,0,0,0,0},
-    {1,1,1,1,1,1,0,1},
-    {2,3,4,5,6,0,0,0}
+    {0,0,0,0,0,0,0,0},
+    {1,1,1,1,1,1,1,1},
+    {2,3,4,5,6,4,3,2}
 };
 
 bool selectedSquares[8][8];
@@ -146,7 +156,7 @@ float Minimax(bool isWhite, int depth);
 #pragma endregion
 
 bool isWhiteTurn = true;
-bool playAsWhite = true;
+bool playAsWhite = false;
 
 int nodes;
 
@@ -381,22 +391,69 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
         if (mv.to == pieceTo)
         {
 
-            prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
-            prev.from = pieceFrom;
-            prev.to = pieceTo;
-            prev.capturedPiece = board[pieceTo.x][pieceTo.y];
-
-
-            board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
-            board[pieceFrom.x][pieceFrom.y] = 0;
-
-            if (prev.movedPiece == 1 && pieceFrom.x == 1 && pieceTo.x == 0)
+            if (mv.isCastle = true)
             {
-                board[pieceTo.x][pieceTo.y] = 5;
+                prev.isCastle = true;
+                prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
+                prev.from = pieceFrom;
+                prev.to = pieceTo;
+                prev.capturedPiece = board[pieceTo.x][pieceTo.y];
+
+                board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
+                board[pieceFrom.x][pieceFrom.y] = EMPTY;
+
+                if (board[pieceTo.x][pieceTo.y] == WK)
+                {
+                    if (pieceTo.x == 7 && pieceTo.y == 6)
+                    {
+                        prev.rookSquare = { 7,5 };
+                        board[7][5] = WR;
+                        board[7][7] = EMPTY;
+                    }
+                    else if (pieceTo.x == 7 && pieceTo.y == 2)
+                    {
+                        prev.rookSquare = { 7,3 };
+                        board[7][3] = WR;
+                        board[7][0] = EMPTY;
+                    }
+
+                }
+                else if (board[pieceTo.x][pieceTo.y] == BK)
+                {
+                    if (pieceTo.x == 0 && pieceTo.y == 6)
+                    {
+                        prev.rookSquare = { 0,5 };
+                        board[0][5] = BR;
+                        board[0][7] = EMPTY;
+                    }
+                    else if (pieceTo.x == 0 && pieceTo.y == 2)
+                    {
+                        prev.rookSquare = { 0,3 };
+                        board[0][3] = BR;
+                        board[0][0] = EMPTY;
+                    }
+
+                }
             }
-            else if (prev.movedPiece == 7 && pieceFrom.x == 6 && pieceTo.x == 7)
+            else
             {
-                board[pieceTo.x][pieceTo.y] = 11;
+                prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
+                prev.from = pieceFrom;
+                prev.to = pieceTo;
+                prev.capturedPiece = board[pieceTo.x][pieceTo.y];
+
+
+                board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
+                board[pieceFrom.x][pieceFrom.y] = EMPTY;
+
+                if (prev.movedPiece == 1 && pieceFrom.x == 1 && pieceTo.x == 0)
+                {
+                    board[pieceTo.x][pieceTo.y] = 5;
+                }
+                else if (prev.movedPiece == 7 && pieceFrom.x == 6 && pieceTo.x == 7)
+                {
+                    board[pieceTo.x][pieceTo.y] = 11;
+                }
             }
 
 
@@ -433,8 +490,38 @@ void UndoMove()
         return;
     Move prev = prevMoves.back();
 
-    board[prev.from.x][prev.from.y] = prev.movedPiece;
-    board[prev.to.x][prev.to.y] = prev.capturedPiece;
+    if (prev.isCastle)
+    {
+        board[prev.from.x][prev.from.y] = prev.movedPiece;
+        board[prev.to.x][prev.to.y] = prev.capturedPiece;
+
+        if (prev.rookSquare.x == 7 && prev.rookSquare.y == 5)
+        {
+            board[7][7] = board[prev.rookSquare.x][prev.rookSquare.y];
+            board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+        }
+        else if (prev.rookSquare.x == 7 && prev.rookSquare.y == 3)
+        {
+            board[7][0] = board[prev.rookSquare.x][prev.rookSquare.y];
+            board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+        }
+        else if (prev.rookSquare.x == 0 && prev.rookSquare.y == 5)
+        {
+            board[0][7] = board[prev.rookSquare.x][prev.rookSquare.y];
+            board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+        }
+        else if (prev.rookSquare.x == 0 && prev.rookSquare.y == 3)
+        {
+            board[0][0] = board[prev.rookSquare.x][prev.rookSquare.y];
+            board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+        }
+    }
+    else
+    {
+        board[prev.from.x][prev.from.y] = prev.movedPiece;
+        board[prev.to.x][prev.to.y] = prev.capturedPiece;
+    }
+
 
     prevMoves.pop_back();
 
@@ -579,6 +666,46 @@ void GeneratePsuedoMoves(Vector2i pos)
         break;
     case 6: //King
         GenerateSlidingMoves(pos, 0, 8, 1);
+        if (isWhite)
+        {
+            if (!hasWhiteKingMoved && !hasWhiteKingRookMoved)
+            {
+                if (board[7][5] == EMPTY && board[7][6] == EMPTY)
+                {
+                    move.to.x = 7;
+                    move.to.y = 6;
+                    move.isCastle = true;
+                    pseudoMoves.push_back(move);
+                }
+                if (board[7][1] == EMPTY && board[7][2] == EMPTY && board[7][3] == EMPTY)
+                {
+                    move.to.x = 7;
+                    move.to.y = 2;
+                    move.isCastle = true;
+                    pseudoMoves.push_back(move);
+                }
+            }
+        }
+        else
+        {
+            if (!hasBlackKingMoved && !hasBlackKingRookMoved)
+            {
+                if (board[0][5] == EMPTY && board[0][6] == EMPTY)
+                {
+                    move.to.x = 0;
+                    move.to.y = 6;
+                    move.isCastle = true;
+                    pseudoMoves.push_back(move);
+                }
+                if (board[0][1] == EMPTY && board[0][2] == EMPTY && board[0][3] == EMPTY)
+                {
+                    move.to.x = 0;
+                    move.to.y = 2;
+                    move.isCastle = true;
+                    pseudoMoves.push_back(move);
+                }
+            }
+        }
         break;
     }
 }
