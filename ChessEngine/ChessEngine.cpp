@@ -379,6 +379,68 @@ void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
 #pragma endregion
 
 #pragma region Moves
+void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
+{
+    Move prev;
+
+    prev.isCastle = true;
+
+    prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
+    prev.from = pieceFrom;
+    prev.to = pieceTo;
+    prev.capturedPiece = board[pieceTo.x][pieceTo.y];
+
+    board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
+    board[pieceFrom.x][pieceFrom.y] = EMPTY;
+
+    if (isCastle)
+    {
+        prev.isCastle = true;
+        if (board[pieceTo.x][pieceTo.y] == WK)
+        {
+            if (pieceTo.x == 7 && pieceTo.y == 6)
+            {
+                prev.rookSquare = { 7,5 };
+                board[7][5] = WR;
+                board[7][7] = EMPTY;
+            }
+            else if (pieceTo.x == 7 && pieceTo.y == 2)
+            {
+                prev.rookSquare = { 7,3 };
+                board[7][3] = WR;
+                board[7][0] = EMPTY;
+            }
+
+        }
+        else if (board[pieceTo.x][pieceTo.y] == BK)
+        {
+            if (pieceTo.x == 0 && pieceTo.y == 6)
+            {
+                prev.rookSquare = { 0,5 };
+                board[0][5] = BR;
+                board[0][7] = EMPTY;
+            }
+            else if (pieceTo.x == 0 && pieceTo.y == 2)
+            {
+                prev.rookSquare = { 0,3 };
+                board[0][3] = BR;
+                board[0][0] = EMPTY;
+            }
+
+        }
+    }
+
+    if (prev.movedPiece == 1 && pieceFrom.x == 1 && pieceTo.x == 0)
+    {
+        board[pieceTo.x][pieceTo.y] = 5;
+    }
+    else if (prev.movedPiece == 7 && pieceFrom.x == 6 && pieceTo.x == 7)
+    {
+        board[pieceTo.x][pieceTo.y] = 11;
+    }
+
+    prevMoves.push_back(prev);
+}
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 {
     checkSquare = { -1,-1 };
@@ -388,81 +450,17 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 
     GenerateLegalMoves(pieceFrom);
 
-    Move prev;
+    
     for (auto& mv : legalMoves)
     {
         if (mv.to == pieceTo)
         {
-
-            if (mv.isCastle = true)
-            {
-                prev.isCastle = true;
-                prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
-                prev.from = pieceFrom;
-                prev.to = pieceTo;
-                prev.capturedPiece = board[pieceTo.x][pieceTo.y];
-
-                board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
-                board[pieceFrom.x][pieceFrom.y] = EMPTY;
-
-                if (board[pieceTo.x][pieceTo.y] == WK)
-                {
-                    if (pieceTo.x == 7 && pieceTo.y == 6)
-                    {
-                        prev.rookSquare = { 7,5 };
-                        board[7][5] = WR;
-                        board[7][7] = EMPTY;
-                    }
-                    else if (pieceTo.x == 7 && pieceTo.y == 2)
-                    {
-                        prev.rookSquare = { 7,3 };
-                        board[7][3] = WR;
-                        board[7][0] = EMPTY;
-                    }
-
-                }
-                else if (board[pieceTo.x][pieceTo.y] == BK)
-                {
-                    if (pieceTo.x == 0 && pieceTo.y == 6)
-                    {
-                        prev.rookSquare = { 0,5 };
-                        board[0][5] = BR;
-                        board[0][7] = EMPTY;
-                    }
-                    else if (pieceTo.x == 0 && pieceTo.y == 2)
-                    {
-                        prev.rookSquare = { 0,3 };
-                        board[0][3] = BR;
-                        board[0][0] = EMPTY;
-                    }
-
-                }
-            }
-            else
-            {
-                prev.movedPiece = board[pieceFrom.x][pieceFrom.y];
-                prev.from = pieceFrom;
-                prev.to = pieceTo;
-                prev.capturedPiece = board[pieceTo.x][pieceTo.y];
-
-
-                board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
-                board[pieceFrom.x][pieceFrom.y] = EMPTY;
-
-                if (prev.movedPiece == 1 && pieceFrom.x == 1 && pieceTo.x == 0)
-                {
-                    board[pieceTo.x][pieceTo.y] = 5;
-                }
-                else if (prev.movedPiece == 7 && pieceFrom.x == 6 && pieceTo.x == 7)
-                {
-                    board[pieceTo.x][pieceTo.y] = 11;
-                }
-            }
+            MovePieceOnly(pieceFrom, pieceTo, mv.isCastle);
 
             if (IsKingInCheck(PieceColor(pieceTo) != 1))
                 checkSquare = FindKing(PieceColor(pieceTo) != 1);
 
-            prevMoves.push_back(prev);
+            
 
 
             if(pieceFrom.x == 7 && pieceFrom.y==4)
@@ -502,7 +500,7 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
         checkSquare = FindKing(PieceColor(pieceTo) != 1);
     return false;
 }
-void UndoMove()
+void UndoPieceOnly()
 {
     if (prevMoves.size() < 1)
         return;
@@ -541,6 +539,10 @@ void UndoMove()
 
 
     prevMoves.pop_back();
+}
+void UndoMove()
+{
+    UndoPieceOnly();
 
     if (IsKingInCheck(true))
         checkSquare = FindKing(true);
@@ -687,14 +689,14 @@ void GeneratePsuedoMoves(Vector2i pos)
         {
             if (!hasWhiteKingMoved && !hasWhiteKingRookMoved && board[7][4] == WK)
             {
-                if (board[7][5] == EMPTY && board[7][6] == EMPTY)
+                if (board[7][5] == EMPTY && board[7][6] == EMPTY && board[7][7] == WR)
                 {
                     move.to.x = 7;
                     move.to.y = 6;
                     move.isCastle = true;
                     pseudoMoves.push_back(move);
                 }
-                if (board[7][1] == EMPTY && board[7][2] == EMPTY && board[7][3] == EMPTY)
+                if (board[7][1] == EMPTY && board[7][2] == EMPTY && board[7][3] == EMPTY && board[7][0] == WR)
                 {
                     move.to.x = 7;
                     move.to.y = 2;
@@ -707,14 +709,14 @@ void GeneratePsuedoMoves(Vector2i pos)
         {
             if (!hasBlackKingMoved && !hasBlackKingRookMoved && board[0][4] == BK)
             {
-                if (board[0][5] == EMPTY && board[0][6] == EMPTY)
+                if (board[0][5] == EMPTY && board[0][6] == EMPTY && board[0][7] == BR)
                 {
                     move.to.x = 0;
                     move.to.y = 6;
                     move.isCastle = true;
                     pseudoMoves.push_back(move);
                 }
-                if (board[0][1] == EMPTY && board[0][2] == EMPTY && board[0][3] == EMPTY)
+                if (board[0][1] == EMPTY && board[0][2] == EMPTY && board[0][3] == EMPTY && board[0][0] == BR)
                 {
                     move.to.x = 0;
                     move.to.y = 2;
@@ -779,17 +781,12 @@ void GenerateLegalMoves(Vector2i pos)
 
     for (auto& mv : pseudoMovesCopy)
     {
-        int movedPiece = board[mv.from.x][mv.from.y];
-        int capturedPiece = board[mv.to.x][mv.to.y];
-
-        board[mv.to.x][mv.to.y] = movedPiece;
-        board[mv.from.x][mv.from.y] = EMPTY;
+        MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
         if (!IsKingInCheck(isWhite))
             legalMoves.push_back(mv);
 
-        board[mv.to.x][mv.to.y] = capturedPiece;
-        board[mv.from.x][mv.from.y] = movedPiece;
+        UndoPieceOnly();
     }
 }
 #pragma endregion
@@ -946,16 +943,11 @@ bool MakeMoveEngine(bool isWhite)
 
     for (auto& mv : moves)
     {
-        int movedPiece = board[mv.from.x][mv.from.y];
-        int capturedPiece = board[mv.to.x][mv.to.y];
-
-        board[mv.to.x][mv.to.y] = movedPiece;
-        board[mv.from.x][mv.from.y] = EMPTY;
+        MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
         int score = Minimax(!isWhite, 2);
 
-        board[mv.to.x][mv.to.y] = capturedPiece;
-        board[mv.from.x][mv.from.y] = movedPiece;
+        UndoPieceOnly();
 
         if (isWhite)
         {
@@ -999,16 +991,11 @@ float Minimax(bool isWhite, int depth)
 
         for (auto& mv : moves)
         {
-            int movedPiece = board[mv.from.x][mv.from.y];
-            int capturedPiece = board[mv.to.x][mv.to.y];
-
-            board[mv.to.x][mv.to.y] = movedPiece;
-            board[mv.from.x][mv.from.y] = EMPTY;
+            MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
             int score = Minimax(false, depth - 1);
 
-            board[mv.to.x][mv.to.y] = capturedPiece;
-            board[mv.from.x][mv.from.y] = movedPiece;
+            UndoPieceOnly();
 
             bestScore = max(bestScore, score);
         }
@@ -1021,16 +1008,11 @@ float Minimax(bool isWhite, int depth)
 
         for (auto& mv : moves)
         {
-            int movedPiece = board[mv.from.x][mv.from.y];
-            int capturedPiece = board[mv.to.x][mv.to.y];
-
-            board[mv.to.x][mv.to.y] = movedPiece;
-            board[mv.from.x][mv.from.y] = EMPTY;
+            MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
             int score = Minimax(true, depth - 1);
 
-            board[mv.to.x][mv.to.y] = capturedPiece;
-            board[mv.from.x][mv.from.y] = movedPiece;
+            UndoPieceOnly();
 
             bestScore = min(bestScore, score);
         }
