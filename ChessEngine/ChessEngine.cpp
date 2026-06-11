@@ -6,6 +6,11 @@ using namespace std;
 using namespace sf;
 
 
+//DO THESE
+// Implement checks hasKing and Hasrook moved
+// Check if king is on original square on GeneratePsuedo
+//Write different function for make and undo move which purely do moves without checking legal moves or changing anything for engine
+
 #pragma region window
 
 unsigned int windowWidth = 680;
@@ -456,11 +461,26 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
                 }
             }
 
-
             if (IsKingInCheck(PieceColor(pieceTo) != 1))
                 checkSquare = FindKing(PieceColor(pieceTo) != 1);
 
             prevMoves.push_back(prev);
+
+
+            if(pieceFrom.x == 7 && pieceFrom.y==4)
+                hasWhiteKingMoved=true;
+            if(pieceFrom.x == 0 && pieceFrom.y==4)
+                hasBlackKingMoved=true;
+
+            if (pieceFrom.x == 7 && pieceFrom.y == 7)
+                hasWhiteKingRookMoved = true;
+            if (pieceFrom.x == 7 && pieceFrom.y == 0)
+                hasWhiteQueenRookMoved = true;
+            if (pieceFrom.x == 0 && pieceFrom.y == 7)
+                hasBlackKingRookMoved = true;
+            if (pieceFrom.x == 0 && pieceFrom.y == 4)
+                hasBlackQueenRookMoved = true;
+
 
             //check for mate or draw
             if (IsStalemate(PieceColor(pieceTo) != 1))
@@ -490,36 +510,35 @@ void UndoMove()
         return;
     Move prev = prevMoves.back();
 
+    board[prev.from.x][prev.from.y] = prev.movedPiece;
+    board[prev.to.x][prev.to.y] = prev.capturedPiece;
+
     if (prev.isCastle)
     {
-        board[prev.from.x][prev.from.y] = prev.movedPiece;
-        board[prev.to.x][prev.to.y] = prev.capturedPiece;
-
         if (prev.rookSquare.x == 7 && prev.rookSquare.y == 5)
         {
             board[7][7] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+            hasWhiteKingMoved = false;
         }
         else if (prev.rookSquare.x == 7 && prev.rookSquare.y == 3)
         {
             board[7][0] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+            hasWhiteKingMoved = false;
         }
         else if (prev.rookSquare.x == 0 && prev.rookSquare.y == 5)
         {
             board[0][7] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+            hasBlackKingMoved = false;
         }
         else if (prev.rookSquare.x == 0 && prev.rookSquare.y == 3)
         {
             board[0][0] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
+            hasBlackKingMoved = false;
         }
-    }
-    else
-    {
-        board[prev.from.x][prev.from.y] = prev.movedPiece;
-        board[prev.to.x][prev.to.y] = prev.capturedPiece;
     }
 
 
