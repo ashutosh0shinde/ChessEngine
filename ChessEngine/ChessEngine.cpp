@@ -114,6 +114,9 @@ vector<Move> prevMoves;
 vector<Move> legalMoves;
 vector <Move> pseudoMoves;
 
+Vector2i lastMoveFrom = { -1,-1 };
+Vector2i lastMoveTo = { -1,-1 };
+
 #pragma endregion
 
 #pragma region Board_&_UI
@@ -170,9 +173,11 @@ float Minimax(bool isWhite, int depth);
 #pragma endregion
 
 bool isWhiteTurn = true;
-bool playAsWhite = false;
+bool playAsWhite = true;
 
 int nodes;
+
+
 
 //Functions Start
 #pragma region BOAED&MAIN
@@ -312,19 +317,8 @@ int main()
         DrawWindow(window, piecesTexture, false);
     }
 }
-void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
+void DrawEval(float score, auto& window)
 {
-    if (clearSelected)
-    {
-        for (int i = 0; i < 8;i++)
-        {
-            for (int j = 0;j < 8;j++)
-            {
-                selectedSquares[i][j] = false;
-            }
-        }
-    }
-    //EVAL BAR
     float eval = Evaluate();
 
     if (eval < 5000 && eval > -5000)
@@ -337,6 +331,23 @@ void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
     RectangleShape evalRectangle({ evalWidth, windowHeight / 2.f - (eval / evalMax) * (windowHeight / 2.f) });
     evalRectangle.setFillColor(Color(30, 30, 30));
     //cout << eval/100 << endl;
+
+    window.draw(evalRectangle);
+}
+void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
+{
+    if (clearSelected)
+    {
+        for (int i = 0; i < 8;i++)
+        {
+            for (int j = 0;j < 8;j++)
+            {
+                selectedSquares[i][j] = false;
+            }
+        }
+    }
+    
+    DrawEval(0, window);
 
     for (int row = 0; row < 8;row++) //Board Drawing
     {
@@ -370,10 +381,16 @@ void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
                 rect.setFillColor(Color(141, 96, 37));
             }
 
+            if(lastMoveFrom.x == row && lastMoveFrom.y == col)
+                rect.setFillColor(Color(265, 231, 185));
+            if(lastMoveTo.x == row && lastMoveTo.y == col)
+                rect.setFillColor(Color(285, 231, 185));
+
             if (checkSquare.x == row && checkSquare.y == col)
             {
                 rect.setFillColor(Color(255, 154, 129));
             }
+
 
             if (selectedSquares[row][col] == true)
             {
@@ -384,7 +401,7 @@ void DrawWindow(auto& window, auto piecesTexture, bool clearSelected)
             window.draw(piece);
         }
     }
-    window.draw(evalRectangle);
+    
     window.display();
 }
 #pragma endregion
@@ -478,6 +495,8 @@ void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 {
     checkSquare = { -1,-1 };
+    lastMoveFrom = pieceFrom;
+    lastMoveTo = pieceTo;
 
     if (PieceColor(pieceFrom) == 0 || PieceColor(pieceFrom) == PieceColor(pieceTo))
         return false;
@@ -536,6 +555,8 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 }
 void UndoPieceOnly()
 {
+
+
     if (prevMoves.size() < 1)
         return;
     Move prev = prevMoves.back();
@@ -588,6 +609,9 @@ void UndoPieceOnly()
 void UndoMove()
 {
     UndoPieceOnly();
+
+    lastMoveFrom = { -1,-1 };
+    lastMoveTo = { -1,-1 };
 
     if (IsKingInCheck(true))
         checkSquare = FindKing(true);
@@ -929,17 +953,17 @@ int WhichPiece(Vector2i pos)
 {
     if (board[pos.x][pos.y] == EMPTY)
         return 0;
-    else if (board[pos.x][pos.y] == 1 || board[pos.x][pos.y] == 7) //Pawn
+    else if (board[pos.x][pos.y] == 1 || board[pos.x][pos.y] == 7) //Pawn 1
         return 1;
-    else if (board[pos.x][pos.y] == 3 || board[pos.x][pos.y] == 9)//Knight
+    else if (board[pos.x][pos.y] == 3 || board[pos.x][pos.y] == 9)//Knight 2
         return 2;
-    else if (board[pos.x][pos.y] == 4 || board[pos.x][pos.y] == 10)//Bishop
+    else if (board[pos.x][pos.y] == 4 || board[pos.x][pos.y] == 10)//Bishop 3
         return 3;
-    else if (board[pos.x][pos.y] == 2 || board[pos.x][pos.y] == 8)//Rook
+    else if (board[pos.x][pos.y] == 2 || board[pos.x][pos.y] == 8)//Rook 4
         return 4;
-    else if (board[pos.x][pos.y] == 5 || board[pos.x][pos.y] == 11)//Queen
+    else if (board[pos.x][pos.y] == 5 || board[pos.x][pos.y] == 11)//Queen 5
         return 5;
-    else if (board[pos.x][pos.y] == 6 || board[pos.x][pos.y] == 12)//King
+    else if (board[pos.x][pos.y] == 6 || board[pos.x][pos.y] == 12)//King 6
         return 6;
 }
 int PieceColor(Vector2i pos)
@@ -953,6 +977,31 @@ int PieceColor(Vector2i pos)
         return 1; // white
 
     return 2; // black
+}
+int CountMaterial()
+{
+    int mat = 0;
+    for (int i = 0;i < 8;i++)
+    {
+        for (int j = 0;j < 8;j++)
+        {
+            if (board[i][j] != EMPTY)
+            {
+                if (WhichPiece({ i,j }) == 1)
+                    mat++;
+                else if (WhichPiece({ i,j }) == 2)
+                    mat += 300;
+                else if (WhichPiece({ i,j }) == 3)
+                    mat += 300;
+                else if (WhichPiece({ i,j }) == 4)
+                    mat += 500;
+                else if (WhichPiece({ i,j }) == 5)
+                    mat += 900;
+
+            }
+        }
+    }
+    return mat;
 }
 #pragma endregion
 
@@ -990,7 +1039,8 @@ bool MakeMoveEngine(bool isWhite)
     {
         MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
-        int score = Minimax(!isWhite, 2);
+        int depth = 2;
+        int score = CountMaterial() < 1000 ?  Minimax(!isWhite, depth+1) : Minimax(!isWhite, depth);
 
         UndoPieceOnly();
 
@@ -1120,6 +1170,7 @@ float Evaluate()
     eval += GenerateAllPseudoMoves(true).size() / 3;
     eval -= GenerateAllPseudoMoves(false).size() / 3;
 
+    //DrawEval(eval);
     return eval;
 }
 #pragma endregion
