@@ -551,6 +551,8 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
     }
     if (IsKingInCheck(PieceColor(pieceTo) != 1))
         checkSquare = FindKing(PieceColor(pieceTo) != 1);
+    lastMoveFrom = { -1,-1 };
+    lastMoveTo = { -1,-1 };
     return false;
 }
 void UndoPieceOnly()
