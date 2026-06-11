@@ -7,8 +7,6 @@ using namespace sf;
 
 
 //DO THESE
-// Implement checks hasKing and Hasrook moved
-// Check if king is on original square on GeneratePsuedo
 //Write different function for make and undo move which purely do moves without checking legal moves or changing anything for engine
 
 #pragma region window
@@ -687,7 +685,7 @@ void GeneratePsuedoMoves(Vector2i pos)
         GenerateSlidingMoves(pos, 0, 8, 1);
         if (isWhite)
         {
-            if (!hasWhiteKingMoved && !hasWhiteKingRookMoved)
+            if (!hasWhiteKingMoved && !hasWhiteKingRookMoved && board[7][4] == WK)
             {
                 if (board[7][5] == EMPTY && board[7][6] == EMPTY)
                 {
@@ -707,7 +705,7 @@ void GeneratePsuedoMoves(Vector2i pos)
         }
         else
         {
-            if (!hasBlackKingMoved && !hasBlackKingRookMoved)
+            if (!hasBlackKingMoved && !hasBlackKingRookMoved && board[0][4] == BK)
             {
                 if (board[0][5] == EMPTY && board[0][6] == EMPTY)
                 {
