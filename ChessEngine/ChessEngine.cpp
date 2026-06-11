@@ -52,8 +52,8 @@ bool draw = false;
 bool blackWon = false;
 bool whiteWon = false;
 
-int whiteTotalLegalMoves = 0;
-int blackTotalLegalMoves = 0;
+bool hasWhiteCastled = false;
+bool hasBlackCastled = false;
 
 float evalMax = 2500;
 
@@ -99,6 +99,15 @@ struct Move
 
     bool isCastle = false;
     Vector2i rookSquare;
+
+    bool hasWhiteKingMoved;
+    bool hasBlackKingMoved;
+
+    bool hasWhiteKingRookMoved;
+    bool hasWhiteQueenRookMoved;
+
+    bool hasBlackKingRookMoved;
+    bool hasBlackQueenRookMoved;
 };
 
 vector<Move> prevMoves;
@@ -139,7 +148,9 @@ bool HasLegalMoves(bool isWhite);
 bool IsCheckmate(bool isWhite);
 bool IsStalemate(bool isWhite);
 
+void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle);
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo);
+void UndoPieceOnly();
 void UndoMove();
 
 void GenerateLegalMoves(Vector2i pos);
@@ -390,6 +401,13 @@ void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
     prev.to = pieceTo;
     prev.capturedPiece = board[pieceTo.x][pieceTo.y];
 
+    prev.hasBlackKingMoved = hasBlackKingMoved;
+    prev.hasWhiteKingMoved = hasWhiteKingMoved;
+    prev.hasWhiteKingRookMoved = hasWhiteKingRookMoved;
+    prev.hasWhiteQueenRookMoved = hasWhiteQueenRookMoved;
+    prev.hasBlackKingRookMoved = hasBlackKingRookMoved;
+    prev.hasBlackQueenRookMoved = hasBlackQueenRookMoved;
+
     board[pieceTo.x][pieceTo.y] = board[pieceFrom.x][pieceFrom.y];
     board[pieceFrom.x][pieceFrom.y] = EMPTY;
 
@@ -398,6 +416,7 @@ void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
         prev.isCastle = true;
         if (board[pieceTo.x][pieceTo.y] == WK)
         {
+            hasWhiteCastled = true;
             if (pieceTo.x == 7 && pieceTo.y == 6)
             {
                 prev.rookSquare = { 7,5 };
@@ -414,6 +433,7 @@ void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
         }
         else if (board[pieceTo.x][pieceTo.y] == BK)
         {
+            hasBlackCastled = true;
             if (pieceTo.x == 0 && pieceTo.y == 6)
             {
                 prev.rookSquare = { 0,5 };
@@ -439,6 +459,20 @@ void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
         board[pieceTo.x][pieceTo.y] = 11;
     }
 
+    if (pieceFrom.x == 7 && pieceFrom.y == 4)
+        hasWhiteKingMoved = true;
+    if (pieceFrom.x == 0 && pieceFrom.y == 4)
+        hasBlackKingMoved = true;
+
+    if (pieceFrom.x == 7 && pieceFrom.y == 7)
+        hasWhiteKingRookMoved = true;
+    if (pieceFrom.x == 7 && pieceFrom.y == 0)
+        hasWhiteQueenRookMoved = true;
+    if (pieceFrom.x == 0 && pieceFrom.y == 7)
+        hasBlackKingRookMoved = true;
+    if (pieceFrom.x == 0 && pieceFrom.y == 4)
+        hasBlackQueenRookMoved = true;
+
     prevMoves.push_back(prev);
 }
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
@@ -462,11 +496,10 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 
             
 
-
-            if(pieceFrom.x == 7 && pieceFrom.y==4)
-                hasWhiteKingMoved=true;
-            if(pieceFrom.x == 0 && pieceFrom.y==4)
-                hasBlackKingMoved=true;
+            if (pieceFrom.x == 7 && pieceFrom.y == 4)
+                hasWhiteKingMoved = true;
+            if (pieceFrom.x == 0 && pieceFrom.y == 4)
+                hasBlackKingMoved = true;
 
             if (pieceFrom.x == 7 && pieceFrom.y == 7)
                 hasWhiteKingRookMoved = true;
@@ -476,6 +509,7 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
                 hasBlackKingRookMoved = true;
             if (pieceFrom.x == 0 && pieceFrom.y == 4)
                 hasBlackQueenRookMoved = true;
+            
 
 
             //check for mate or draw
@@ -509,6 +543,13 @@ void UndoPieceOnly()
     board[prev.from.x][prev.from.y] = prev.movedPiece;
     board[prev.to.x][prev.to.y] = prev.capturedPiece;
 
+    hasBlackKingMoved = prev.hasBlackKingMoved;
+    hasWhiteKingMoved = prev.hasWhiteKingMoved;
+    hasWhiteKingRookMoved = prev.hasWhiteKingRookMoved;
+    hasWhiteQueenRookMoved = prev.hasWhiteQueenRookMoved;
+    hasBlackKingRookMoved = prev.hasBlackKingRookMoved;
+    hasBlackQueenRookMoved = prev.hasBlackQueenRookMoved;
+
     if (prev.isCastle)
     {
         if (prev.rookSquare.x == 7 && prev.rookSquare.y == 5)
@@ -516,24 +557,28 @@ void UndoPieceOnly()
             board[7][7] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
             hasWhiteKingMoved = false;
+            hasWhiteCastled = false;
         }
         else if (prev.rookSquare.x == 7 && prev.rookSquare.y == 3)
         {
             board[7][0] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
             hasWhiteKingMoved = false;
+            hasWhiteCastled = false;
         }
         else if (prev.rookSquare.x == 0 && prev.rookSquare.y == 5)
         {
             board[0][7] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
             hasBlackKingMoved = false;
+            hasBlackCastled = false;
         }
         else if (prev.rookSquare.x == 0 && prev.rookSquare.y == 3)
         {
             board[0][0] = board[prev.rookSquare.x][prev.rookSquare.y];
             board[prev.rookSquare.x][prev.rookSquare.y] = EMPTY;
             hasBlackKingMoved = false;
+            hasBlackCastled = false;
         }
     }
 
@@ -1068,8 +1113,12 @@ float Evaluate()
         }
     }
 
-    eval += GenerateAllPseudoMoves(true).size() / 2;
-    eval -= GenerateAllPseudoMoves(false).size() / 2;
+    //King Safety
+    eval += hasWhiteCastled ? 50 : -15;
+    eval += hasBlackCastled ? -50 : 15;
+
+    eval += GenerateAllPseudoMoves(true).size() / 3;
+    eval -= GenerateAllPseudoMoves(false).size() / 3;
 
     return eval;
 }
