@@ -119,6 +119,8 @@ struct Move
     Vector2i from;
     Vector2i to;
 
+    int moveScore;
+
     int movedPiece;
     int capturedPiece;
 
@@ -876,16 +878,36 @@ void GenerateLegalMoves(Vector2i pos)
     bool isWhite = PieceColor(pos) == 1;
     GeneratePsuedoMoves(pos);
     vector<Move> pseudoMovesCopy = pseudoMoves;
-
     for (auto& mv : pseudoMovesCopy)
     {
+        // move ordering
+        int victim = WhichPiece(mv.to);
+        int attacker = WhichPiece(mv.from);
+
+        if (victim != 0)
+            mv.moveScore += 200;
+        if (victim != 0 && attacker <= victim)
+            mv.moveScore += victim  * 100 - attacker;
+        if (mv.isCastle)
+            mv.moveScore += 400;
+
         MovePieceOnly(mv.from, mv.to, mv.isCastle);
+
+        if (IsKingInCheck(!isWhite))
+            mv.moveScore += 500;
 
         if (!IsKingInCheck(isWhite))
             legalMoves.push_back(mv);
 
         UndoPieceOnly();
     }
+
+    sort(legalMoves.begin(),
+        legalMoves.end(),
+        [](const Move& a, const Move& b)
+        {
+            return a.moveScore > b.moveScore;
+        });
 }
 #pragma endregion
 
@@ -1062,7 +1084,7 @@ bool MakeMoveEngine(bool isWhite)
     for (auto& mv : moves)
     {
         MovePieceOnly(mv.from, mv.to, mv.isCastle); 
-        int score = Minimax(!isWhite, 2, INT_MIN, INT_MAX);
+        int score = Minimax(!isWhite, 3, INT_MIN, INT_MAX);
 
         UndoPieceOnly();
 
