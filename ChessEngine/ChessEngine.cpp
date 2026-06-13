@@ -55,9 +55,34 @@ bool whiteWon = false;
 bool hasWhiteCastled = false;
 bool hasBlackCastled = false;
 
+bool isEndgame = false;
+
 float evalMax = 2500;
 
 float bishopPairAdv = 40;
+
+int knightTable[8][8] =
+{
+    {-20,-15,-10,-10,-10,-10,-15,-20},
+    {-15, -5,  0,  0,  0,  0, -5,-15},
+    {-10,  0,  5,  8,  8,  5,  0,-10},
+    {-10,  3,  8, 10, 10,  8,  3,-10},
+    {-10,  0,  8, 10, 10,  8,  0,-10},
+    {-10,  3,  5,  8,  8,  5,  3,-10},
+    {-15, -5,  0,  3,  3,  0, -5,-15},
+    {-20,-15,-10,-10,-10,-10,-15,-20}
+};
+int kingEndgameTable[8][8] =
+{
+    {-5,-4,-3,-2,-2,-3,-4,-5},
+    {-4,-2,-1, 0, 0,-1,-2,-4},
+    {-3,-1, 1, 2, 2, 1,-1,-3},
+    {-2, 0, 2, 3, 3, 2, 0,-2},
+    {-2, 0, 2, 3, 3, 2, 0,-2},
+    {-3,-1, 1, 2, 2, 1,-1,-3},
+    {-4,-2,-1, 0, 0,-1,-2,-4},
+    {-5,-4,-3,-2,-2,-3,-4,-5}
+};
 
 #pragma endregion
 
@@ -150,6 +175,7 @@ int WhichPiece(Vector2i pos);
 bool HasLegalMoves(bool isWhite);
 bool IsCheckmate(bool isWhite);
 bool IsStalemate(bool isWhite);
+int CountMaterial();
 
 void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle);
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo);
@@ -168,7 +194,7 @@ void PrintPsuedoMoves();
 //Engine
 float Evaluate();
 bool MakeMoveEngine(bool isWhite);
-float Minimax(bool isWhite, int depth);
+float Minimax(bool isWhite, int depth, float alpha, float beta);
 
 #pragma endregion
 
@@ -495,8 +521,7 @@ void MovePieceOnly(Vector2i pieceFrom, Vector2i pieceTo, bool isCastle)
 bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
 {
     checkSquare = { -1,-1 };
-    lastMoveFrom = pieceFrom;
-    lastMoveTo = pieceTo;
+    
 
     if (PieceColor(pieceFrom) == 0 || PieceColor(pieceFrom) == PieceColor(pieceTo))
         return false;
@@ -508,6 +533,9 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
     {
         if (mv.to == pieceTo)
         {
+            lastMoveFrom = pieceFrom;
+            lastMoveTo = pieceTo;
+
             MovePieceOnly(pieceFrom, pieceTo, mv.isCastle);
 
             if (IsKingInCheck(PieceColor(pieceTo) != 1))
@@ -546,13 +574,12 @@ bool MakeMove(Vector2i pieceFrom, Vector2i pieceTo)
                     blackWon = true;
             }
 
+            isEndgame = CountMaterial() < 2000;
             return true;
         }
     }
     if (IsKingInCheck(PieceColor(pieceTo) != 1))
         checkSquare = FindKing(PieceColor(pieceTo) != 1);
-    lastMoveFrom = { -1,-1 };
-    lastMoveTo = { -1,-1 };
     return false;
 }
 void UndoPieceOnly()
@@ -565,7 +592,7 @@ void UndoPieceOnly()
 
     board[prev.from.x][prev.from.y] = prev.movedPiece;
     board[prev.to.x][prev.to.y] = prev.capturedPiece;
-
+     
     hasBlackKingMoved = prev.hasBlackKingMoved;
     hasWhiteKingMoved = prev.hasWhiteKingMoved;
     hasWhiteKingRookMoved = prev.hasWhiteKingRookMoved;
@@ -982,28 +1009,23 @@ int PieceColor(Vector2i pos)
 }
 int CountMaterial()
 {
-    int mat = 0;
-    for (int i = 0;i < 8;i++)
-    {
-        for (int j = 0;j < 8;j++)
-        {
-            if (board[i][j] != EMPTY)
-            {
-                if (WhichPiece({ i,j }) == 1)
-                    mat++;
-                else if (WhichPiece({ i,j }) == 2)
-                    mat += 300;
-                else if (WhichPiece({ i,j }) == 3)
-                    mat += 300;
-                else if (WhichPiece({ i,j }) == 4)
-                    mat += 500;
-                else if (WhichPiece({ i,j }) == 5)
-                    mat += 900;
+    int material = 0;
 
+    for (int row = 0; row < 8; row++)
+    {
+        for (int col = 0; col < 8; col++)
+        {
+            switch (WhichPiece({ row, col }))
+            {
+            case 1:   material += 100; break;
+            case 2: material += 300; break;
+            case 3: material += 300; break;
+            case 4:   material += 500; break;
+            case 5:  material += 900; break;
             }
         }
     }
-    return mat;
+    return material;
 }
 #pragma endregion
 
@@ -1039,10 +1061,8 @@ bool MakeMoveEngine(bool isWhite)
 
     for (auto& mv : moves)
     {
-        MovePieceOnly(mv.from, mv.to, mv.isCastle);
-
-        int depth = 2;
-        int score = CountMaterial() < 1000 ?  Minimax(!isWhite, depth+1) : Minimax(!isWhite, depth);
+        MovePieceOnly(mv.from, mv.to, mv.isCastle); 
+        int score = Minimax(!isWhite, 2, INT_MIN, INT_MAX);
 
         UndoPieceOnly();
 
@@ -1066,9 +1086,10 @@ bool MakeMoveEngine(bool isWhite)
 
     return MakeMove(bestMove.from, bestMove.to);
 }
-float Minimax(bool isWhite, int depth)
+float Minimax(bool isWhite, int depth, float alpha, float beta)
 {
     nodes++;
+
     if (depth == 0)
         return Evaluate();
 
@@ -1079,40 +1100,51 @@ float Minimax(bool isWhite, int depth)
         if (IsKingInCheck(isWhite))
             return isWhite ? -100000 : 100000;
 
-        return 0; // stalemate
+        return 0;
     }
 
     if (isWhite)
     {
-        int bestScore = INT_MIN;
+        float bestScore = INT_MIN;
 
         for (auto& mv : moves)
         {
             MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
-            int score = Minimax(false, depth - 1);
+            float score =  Minimax(false,depth - 1,alpha,beta);
 
             UndoPieceOnly();
 
             bestScore = max(bestScore, score);
+
+            alpha = max(alpha, bestScore);
+
+            if (beta <= alpha)
+                break;
         }
 
         return bestScore;
     }
     else
     {
-        int bestScore = INT_MAX;
+        float bestScore = INT_MAX;
 
         for (auto& mv : moves)
         {
             MovePieceOnly(mv.from, mv.to, mv.isCastle);
 
-            int score = Minimax(true, depth - 1);
+            float score =  Minimax(true,depth - 1,alpha, beta);
 
             UndoPieceOnly();
 
             bestScore = min(bestScore, score);
+
+            beta = min(beta, bestScore);
+
+            if (beta <= alpha)
+                break; // PRUNE
         }
+
         return bestScore;
     }
 }
@@ -1138,19 +1170,54 @@ float Evaluate()
         {
             switch (board[i][j])
             {
-            case WP: eval += P; break;
-            case WN: eval += N; break;
-            case WB: eval += B; whiteBishopCount++; break;
-            case WR: eval += R; break;
-            case WQ: eval += Q; break;
+            case WP:
+                eval += P;
+                break;
+            case WN:
+                eval += N;
+                eval += knightTable[i][j];
+                break;
+            case WB:
+                eval += B;
+                whiteBishopCount++;
+                break;
+            case WR:
+                eval += R;
+                break;
+            case WQ:
+                eval += Q;
+                break;
+            case WK:
+                if (isEndgame)
+                {
+                    eval += kingEndgameTable[i][j];
+                }
+                break;
 
-            case BP: eval -= P; break;
-            case BN: eval -= N; break;
-            case BB: eval -= B; blackBishopCount++; break;
-            case BR: eval -= R; break;
-            case BQ: eval -= Q; break;
+            case BP:
+                eval -= P;
+                break;
+            case BN:
+                eval -= N;
+                eval -= knightTable[i][j];
+                break;
+            case BB:
+                eval -= B;
+                blackBishopCount++;
+                break;
+            case BR:
+                eval -= R;
+                break;
+            case BQ:
+                eval -= Q;
+                break;
+            case BK:
+                if (isEndgame)
+                {
+                    eval += kingEndgameTable[i][j];
+                }
+                break;
             }
-
             //Bishop Pair advantage
             if (whiteBishopCount == 2)
             {
@@ -1164,6 +1231,7 @@ float Evaluate()
             }
         }
     }
+
 
     //King Safety
     eval += hasWhiteCastled ? 50 : -15;
