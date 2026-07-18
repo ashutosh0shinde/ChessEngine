@@ -148,6 +148,14 @@ Vector2i lastMoveTo = { -1,-1 };
 
 #pragma region Board_&_UI
 
+int engineDepth = 1;
+bool settingWindowClosed;
+struct Settings
+{
+    bool playerWhite;
+    int depth;
+};
+
 //default board
 int board[8][8] =
 {
@@ -220,10 +228,10 @@ int main()
     selectedPiece.x = -1;
     selectedPiece.y = -1;
 
-
+    #pragma region Textures
     Texture piecesTexture[13];
 
-    RenderWindow window(sf::VideoMode({ windowWidth, windowHeight }), "Chess");
+   
 
     piecesTexture[WP].loadFromFile("PiecesIMG/WP.png");
     piecesTexture[WN].loadFromFile("PiecesIMG/WN.png");
@@ -243,7 +251,49 @@ int main()
     {
         piecesTexture[i].setSmooth(true);
     }
+    #pragma endregion
 
+    RenderWindow settingWindow(VideoMode({ windowWidth/2,(windowHeight) }), "Setting");
+    Settings setting;
+    while(settingWindow.isOpen())
+    {
+        while (auto event = settingWindow.pollEvent())
+        {
+            if (event->is<sf::Event::Closed>())
+                settingWindow.close();
+        }
+        settingWindow.clear(Color(255, 198, 184));
+
+        RectangleShape startButton({ 200,50 });
+        startButton.setPosition({ 72,550 });
+        startButton.setFillColor(Color(79, 55, 6));
+
+        Vector2i pos = Mouse::getPosition(settingWindow);
+        if (Mouse::isButtonPressed(Mouse::Button::Left))
+        {
+            cout << pos.x << " " << pos.y << endl;
+            if (pos.x > 72 && pos.x < 272 && pos.y < 600 && pos.y > 550)
+            {
+                settingWindowClosed = true;
+            }
+        }
+        if (settingWindowClosed)
+        {
+            //isWhiteTurn = setting.playerWhite;
+            //playAsWhite = setting.playerWhite;
+            //engineDepth = setting.depth;
+            settingWindow.close();
+
+        }
+
+        settingWindow.draw(startButton);
+        settingWindow.display();
+    }
+    
+    if (!settingWindowClosed)
+        return 2;
+
+    RenderWindow window(sf::VideoMode({ windowWidth, windowHeight }), "Chess");
     while (window.isOpen())
     {
         while (auto event = window.pollEvent())
@@ -1084,7 +1134,7 @@ bool MakeMoveEngine(bool isWhite)
     for (auto& mv : moves)
     {
         MovePieceOnly(mv.from, mv.to, mv.isCastle); 
-        int score = Minimax(!isWhite, 3, INT_MIN, INT_MAX);
+        int score = Minimax(!isWhite, engineDepth, INT_MIN, INT_MAX);
 
         UndoPieceOnly();
 
