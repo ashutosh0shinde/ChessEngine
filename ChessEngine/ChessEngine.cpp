@@ -172,7 +172,7 @@ Font font;
 struct Settings
 {
     bool setting_white_selected = true;
-    int depth;
+    int depth = 1;
 };
 
 #pragma endregion
@@ -319,6 +319,15 @@ int main()
         blackText.setFillColor(Color(0, 125, 255));
         blackText.setPosition({ 200,105 });
 
+
+        //depth
+        Text depthText(font);
+        depthText.setString("Engine Depth");
+        depthText.setCharacterSize(23);
+        depthText.setFillColor(Color(0, 0, 0));
+        depthText.setPosition({ 100,175 });
+
+
         Vector2i pos = Mouse::getPosition(settingWindow);
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
@@ -340,9 +349,9 @@ int main()
         }
         if (settingWindowClosed)
         {
-            isWhiteTurn = !setting.setting_white_selected;
+            isWhiteTurn = !setting.setting_white_selected ? !setting.setting_white_selected : setting.setting_white_selected;
             playAsWhite = setting.setting_white_selected;
-            //engineDepth = setting.depth;
+            engineDepth = setting.depth;
             settingWindow.close();
 
         }
@@ -350,12 +359,16 @@ int main()
         settingWindow.draw(startButton);
         settingWindow.draw(startText);
         settingWindow.draw(playAsText);
+
         if(setting.setting_white_selected)
              settingWindow.draw(white_back);
         if (!setting.setting_white_selected)
             settingWindow.draw(black_back);
+
         settingWindow.draw(whiteText);
         settingWindow.draw(blackText);
+        settingWindow.draw(depthText);
+
         settingWindow.display();
     }
     
