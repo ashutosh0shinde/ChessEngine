@@ -150,11 +150,7 @@ Vector2i lastMoveTo = { -1,-1 };
 
 int engineDepth = 1;
 bool settingWindowClosed;
-struct Settings
-{
-    bool playerWhite;
-    int depth;
-};
+
 
 //default board
 int board[8][8] =
@@ -168,6 +164,18 @@ int board[8][8] =
     {1,1,1,1,1,1,1,1},
     {2,3,4,5,6,4,3,2}
 };
+
+#pragma region settingWIndow
+
+Font font;
+
+struct Settings
+{
+    bool setting_white_selected = true;
+    int depth;
+};
+
+#pragma endregion
 
 bool selectedSquares[8][8];
 Vector2i selectedPiece;
@@ -253,6 +261,13 @@ int main()
     }
     #pragma endregion
 
+    
+    if (!font.openFromFile("arial.ttf"))
+    {
+        return 1;
+        cout << "Coudn't load font";
+    }
+
     RenderWindow settingWindow(VideoMode({ windowWidth/2,(windowHeight) }), "Setting");
     Settings setting;
     while(settingWindow.isOpen())
@@ -268,10 +283,56 @@ int main()
         startButton.setPosition({ 72,550 });
         startButton.setFillColor(Color(79, 55, 6));
 
+
+        Text startText(font);
+        startText.setString("Start Game");
+        startText.setCharacterSize(23);
+        startText.setFillColor(Color(255, 255, 255));
+        startText.setPosition({ 110,560 });
+
+        //play as
+        Text playAsText(font);
+        startText.setString("Play As");
+        startText.setCharacterSize(23);
+        startText.setFillColor(Color(0, 0, 0));
+        startText.setPosition({ 130,50 });
+
+        //color selection
+        RectangleShape white_back({ 100,35 });
+        white_back.setPosition({ 60,100 });
+        white_back.setFillColor(Color(226, 167, 152));
+
+        RectangleShape black_back({ 100,35 });
+        black_back.setPosition({ 180,100 });
+        black_back.setFillColor(Color(226, 167, 152));
+
+        //color names
+        Text whiteText(font);
+        whiteText.setString("WHITE");
+        whiteText.setCharacterSize(19);
+        whiteText.setFillColor(Color(0, 125, 255));
+        whiteText.setPosition({ 80,105 });
+
+        Text blackText(font);
+        blackText.setString("BLACK");
+        blackText.setCharacterSize(19);
+        blackText.setFillColor(Color(0, 125, 255));
+        blackText.setPosition({ 200,105 });
+
         Vector2i pos = Mouse::getPosition(settingWindow);
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
             cout << pos.x << " " << pos.y << endl;
+
+            if (pos.x > 60 && pos.x < 160 && pos.y > 100 && pos.y < 135) //clicked white
+            {
+                setting.setting_white_selected = true;
+            }
+            else if (pos.x > 180 && pos.x < 280 && pos.y > 100 && pos.y < 135) //clicked black
+            {
+                setting.setting_white_selected = false;
+            }
+            else 
             if (pos.x > 72 && pos.x < 272 && pos.y < 600 && pos.y > 550)
             {
                 settingWindowClosed = true;
@@ -279,14 +340,22 @@ int main()
         }
         if (settingWindowClosed)
         {
-            //isWhiteTurn = setting.playerWhite;
-            //playAsWhite = setting.playerWhite;
+            isWhiteTurn = !setting.setting_white_selected;
+            playAsWhite = setting.setting_white_selected;
             //engineDepth = setting.depth;
             settingWindow.close();
 
         }
 
         settingWindow.draw(startButton);
+        settingWindow.draw(startText);
+        settingWindow.draw(playAsText);
+        if(setting.setting_white_selected)
+             settingWindow.draw(white_back);
+        if (!setting.setting_white_selected)
+            settingWindow.draw(black_back);
+        settingWindow.draw(whiteText);
+        settingWindow.draw(blackText);
         settingWindow.display();
     }
     
