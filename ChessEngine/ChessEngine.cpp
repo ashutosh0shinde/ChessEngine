@@ -357,38 +357,44 @@ int main()
         Vector2i pos = Mouse::getPosition(settingWindow);
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
-            cout << pos.x << " " << pos.y << endl;
+            if (!isLeftPressed)
+            {
+                cout << pos.x << " " << pos.y << endl;
 
-            if (pos.x > 60 && pos.x < 160 && pos.y > 100 && pos.y < 135) //clicked white
-            {
-                setting.setting_white_selected = true;
-            }
-            else if (pos.x > 180 && pos.x < 280 && pos.y > 100 && pos.y < 135) //clicked black
-            {
-                setting.setting_white_selected = false;
-            }
-            else 
-            if (pos.x > 72 && pos.x < 272 && pos.y < 600 && pos.y > 550)
-            {
-                settingWindowClosed = true;
-            }
-            else if (pos.x > 200 && pos.x < 225 && pos.y > 245 && pos.y < 270)
-            {
-                if (setting.depth < depthMax)
+                if (pos.x > 60 && pos.x < 160 && pos.y > 100 && pos.y < 135) //clicked white
                 {
-                    setting.depth++;
-                    cout << endl << setting.depth << endl;
-                    depthSelectedText.setString(to_string(setting.depth));
+                    setting.setting_white_selected = true;
                 }
-            }
-            else if (pos.x > 110 && pos.x < 135 && pos.y > 245 && pos.y < 270)
-            {
-                if (setting.depth > depthMin)
+                else if (pos.x > 180 && pos.x < 280 && pos.y > 100 && pos.y < 135) //clicked black
                 {
-                    setting.depth--;
-                    depthSelectedText.setString(to_string(setting.depth));
+                    setting.setting_white_selected = false;
                 }
+                else if (pos.x > 72 && pos.x < 272 && pos.y < 600 && pos.y > 550)
+                {
+                    settingWindowClosed = true;
+                }
+                else if (pos.x > 200 && pos.x < 225 && pos.y > 245 && pos.y < 270)
+                {
+                    if (setting.depth < depthMax)
+                    {
+                        setting.depth++;
+                        cout << endl << setting.depth << endl;
+                        depthSelectedText.setString(to_string(setting.depth));
+                    }
+                }
+                else if (pos.x > 110 && pos.x < 135 && pos.y > 245 && pos.y < 270)
+                {
+                    if (setting.depth > depthMin)
+                    {
+                        setting.depth--;
+                        depthSelectedText.setString(to_string(setting.depth));
+                    }
+                }
+                isLeftPressed = true;
             }
+        }
+        else {
+            isLeftPressed = false;
         }
         if (settingWindowClosed)
         {
