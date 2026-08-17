@@ -271,7 +271,7 @@ int main()
         cout << "Coudn't load font";
     }
 
-    RenderWindow settingWindow(VideoMode({ windowWidth/2,(windowHeight) }), "Setting");
+    RenderWindow settingWindow(VideoMode({ windowWidth/2,(windowHeight-200) }), "Setting");
     Settings setting;
     while(settingWindow.isOpen())
     {
@@ -283,7 +283,7 @@ int main()
         settingWindow.clear(Color(255, 198, 184));
 
         RectangleShape startButton({ 200,50 });
-        startButton.setPosition({ 72,550 });
+        startButton.setPosition({ 72,365 });
         startButton.setFillColor(Color(79, 55, 6));
 
 
@@ -291,7 +291,7 @@ int main()
         startText.setString("Start Game");
         startText.setCharacterSize(23);
         startText.setFillColor(Color(255, 255, 255));
-        startText.setPosition({ 110,560 });
+        startText.setPosition({ 110,375 });
 
         //play as
         Text playAsText(font);
@@ -413,7 +413,7 @@ int main()
                 {
                     setting.setting_white_selected = false;
                 }
-                else if (pos.x > 72 && pos.x < 272 && pos.y < 600 && pos.y > 550)
+                else if (pos.x > 72 && pos.x < 272 && pos.y < 415 && pos.y > 365)
                 {
                     settingWindowClosed = true;
                 }
