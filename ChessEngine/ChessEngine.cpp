@@ -16,6 +16,9 @@ unsigned int windowHeight = 650;
 float sqSize = windowHeight / 8.f;
 float evalWidth = 30.f;
 
+int depthMax = 6;
+int depthMin = 1;
+
 #pragma endregion
 
 #pragma region Coords
@@ -172,7 +175,7 @@ Font font;
 struct Settings
 {
     bool setting_white_selected = true;
-    int depth = 1;
+    int depth = 2;
 };
 
 #pragma endregion
@@ -292,10 +295,10 @@ int main()
 
         //play as
         Text playAsText(font);
-        startText.setString("Play As");
-        startText.setCharacterSize(23);
-        startText.setFillColor(Color(0, 0, 0));
-        startText.setPosition({ 130,50 });
+        playAsText.setString("Play As");
+        playAsText.setCharacterSize(23);
+        playAsText.setFillColor(Color(0, 0, 0));
+        playAsText.setPosition({ 130,50 });
 
         //color selection
         RectangleShape white_back({ 100,35 });
@@ -326,7 +329,30 @@ int main()
         depthText.setCharacterSize(23);
         depthText.setFillColor(Color(0, 0, 0));
         depthText.setPosition({ 100,175 });
+        
+        Text depthSelectedText(font);
+        depthSelectedText.setString(to_string(setting.depth));
+        depthSelectedText.setPosition({ 160,240 });
+        depthSelectedText.setFillColor(Color(0, 0, 0));
 
+        //selection of depth 
+
+        RectangleShape plusDepth({25,25});
+        RectangleShape minusDepth({25,25});
+
+        plusDepth.setPosition({ 200,245 });
+        minusDepth.setPosition({ 110,245 });
+
+        plusDepth.setFillColor(Color(97, 107, 107));
+        minusDepth.setFillColor(Color(97, 107, 107));
+
+        Text plus(font);
+        plus.setString("+");
+        plus.setPosition({ 204,239 });
+
+        Text minus(font);
+        minus.setString("-");
+        minus.setPosition({ 116,237 });
 
         Vector2i pos = Mouse::getPosition(settingWindow);
         if (Mouse::isButtonPressed(Mouse::Button::Left))
@@ -345,6 +371,23 @@ int main()
             if (pos.x > 72 && pos.x < 272 && pos.y < 600 && pos.y > 550)
             {
                 settingWindowClosed = true;
+            }
+            else if (pos.x > 200 && pos.x < 225 && pos.y > 245 && pos.y < 270)
+            {
+                if (setting.depth < depthMax)
+                {
+                    setting.depth++;
+                    cout << endl << setting.depth << endl;
+                    depthSelectedText.setString(to_string(setting.depth));
+                }
+            }
+            else if (pos.x > 110 && pos.x < 135 && pos.y > 245 && pos.y < 270)
+            {
+                if (setting.depth > depthMin)
+                {
+                    setting.depth--;
+                    depthSelectedText.setString(to_string(setting.depth));
+                }
             }
         }
         if (settingWindowClosed)
@@ -368,6 +411,11 @@ int main()
         settingWindow.draw(whiteText);
         settingWindow.draw(blackText);
         settingWindow.draw(depthText);
+        settingWindow.draw(depthSelectedText);
+        settingWindow.draw(plusDepth);
+        settingWindow.draw(minusDepth);
+        settingWindow.draw(plus);
+        settingWindow.draw(minus);
 
         settingWindow.display();
     }
