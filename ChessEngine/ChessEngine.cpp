@@ -354,6 +354,50 @@ int main()
         minus.setString("-");
         minus.setPosition({ 116,237 });
 
+        //warning
+        Text warningText(font);
+        warningText.setCharacterSize(12);
+        warningText.setString("");
+
+        if (setting.depth == 1)
+        {
+            warningText.setString("Instant (<1 sec per move)");
+            warningText.setCharacterSize(12);
+            warningText.setFillColor(Color(0, 230, 40));
+            warningText.setPosition({ 110,280 });
+        }
+        else if (setting.depth == 2)
+        {
+            warningText.setString("Very Fast (<3 sec per move)");
+            warningText.setFillColor(Color(107, 183, 0));
+            warningText.setPosition({ 110,280 });
+        }
+        else if (setting.depth == 3)
+        {
+            warningText.setString("Fast (< 5 sec per move)");
+            warningText.setFillColor(Color(127, 183, 0));
+            warningText.setPosition({ 110,280 });
+        }
+        else if (setting.depth == 4)
+        {
+            warningText.setString("Slow (~12 sec per move)");
+            warningText.setFillColor(Color(169, 183, 0));
+            warningText.setPosition({ 110,280 });
+        }
+        else if (setting.depth == 5)
+        {
+            warningText.setString("Very slow (~2 min sec per move)");
+            warningText.setCharacterSize(12);
+            warningText.setFillColor(Color(183, 146, 0));
+            warningText.setPosition({ 110,280 });
+        }
+        else if (setting.depth == 6)
+        {
+            warningText.setString("Extremely Slow (>15 min per move)");
+            warningText.setFillColor(Color(221, 80, 80));
+            warningText.setPosition({ 110,280 });
+        }
+
         Vector2i pos = Mouse::getPosition(settingWindow);
         if (Mouse::isButtonPressed(Mouse::Button::Left))
         {
@@ -422,6 +466,9 @@ int main()
         settingWindow.draw(minusDepth);
         settingWindow.draw(plus);
         settingWindow.draw(minus);
+        
+
+        settingWindow.draw(warningText);
 
         settingWindow.display();
     }
